@@ -5,19 +5,37 @@ defineProps<{ msg: string }>()
 
 const count = ref(0)
 
+const isCamOpen = ref(false);
+
+const isRecordingReady = ref(false);
+
 const openCam = () => {
-  console.log(this);
-  const camElement = document.querySelector('#cam') as HTMLVideoElement;
+  const camElement = document.querySelector('#cam') as HTMLMediaElement;
+  const recording = document.querySelector('#recording') as HTMLMediaElement;
   navigator.mediaDevices.getUserMedia({ 
     video: true, 
     audio: false 
   }).then(stream => {
-    const video = camElement;
-    video.srcObject = stream
-    video.onloadedmetadata = () => {
-      video.play()
+    camElement.srcObject = stream
+    camElement.onloadedmetadata = () => {
+      camElement.play()
     }
-  });
+    isCamOpen.value = true;
+    return stream;
+  }).then((stream) => {
+    return startRecording(stream, 5000);
+  }).then((recordedChunks) => {
+    let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+    recording.src = URL.createObjectURL(recordedBlob);
+    isRecordingReady.value = true;
+    let downloadButton = document.querySelector("a#") as HTMLAnchorElement;
+    downloadButton.href = recording.src;
+    downloadButton.download = "RecordedVideo.webm";
+
+    log(
+      `Successfully recorded ${recordedBlob.size} bytes of ${recordedBlob.type} media.`
+    );
+  })
 };
 const closeCam = () => {
   const camElement = document.querySelector('#cam') as HTMLVideoElement;
@@ -27,7 +45,40 @@ const closeCam = () => {
     track.stop();
   });
   camElement.srcObject = null;
+  isCamOpen.value = false;
 };
+
+function log(message: string) {
+  const logElement = document.querySelector('#log') as HTMLDivElement;
+  logElement.innerHTML += `${message}<br>`;
+}
+
+function wait(delayInMS: number) {
+  return new Promise((resolve) => setTimeout(resolve, delayInMS));
+}
+
+function startRecording(stream: MediaStream, lengthInMS: number) {
+  let recorder = new MediaRecorder(stream);
+  let data: Array<Blob> = [];
+
+  recorder.ondataavailable = (event) => data.push(event.data);
+  recorder.start();
+  log(`${recorder.state} for ${lengthInMS / 1000} seconds…`);
+
+  let stopped = new Promise((resolve, reject) => {
+    recorder.onstop = resolve;
+    recorder.onerror = (event) => reject(event);
+  });
+
+  let recorded = wait(lengthInMS).then(() => {
+    if (recorder.state === "recording") {
+      recorder.stop();
+    }
+  });
+
+  return Promise.all([stopped, recorded]).then(() => data);
+}
+
 </script>
 
 <template>
@@ -43,10 +94,16 @@ const closeCam = () => {
   
   <div>
     <video id="cam"></video>
+
+    <video id="recording" controls></video>
   </div>
   <div>
-    <button type="button" @click="closeCam">Close Camera</button>
     <button type="button" @click="openCam">Open Camera</button>
+    <button v-if="isCamOpen" type="button" @click="closeCam">Close Camera</button>
+    <a v-if="isRecordingReady" type="button" id="downloadButton">Download Recordings</a>
+  </div>
+
+  <div id="log">
   </div>
 
   <p>
