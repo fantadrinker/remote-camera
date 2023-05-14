@@ -1,17 +1,89 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { Ref, ref } from 'vue'
 
 defineProps<{ msg: string }>()
 
-const count = ref(0)
+// some integer properties
+const count = ref(0);
+
+const repeatTimes = ref(5);
+
+const repeatInterval = ref(5000);
+
+const recordingLength = ref(5000);
+
+// some html elements
+const cam: Ref<HTMLMediaElement | null> = ref(null);
+
+const rec: Ref<HTMLMediaElement | null> = ref(null);
+
+const logs: Ref<Array<string>> = ref([]);
+
+const downloadedButton: Ref<HTMLAnchorElement | null> = ref(null);
 
 const isCamOpen = ref(false);
 
 const isRecordingReady = ref(false);
 
+const intervalId = ref(-1);
+
+const closeCam = () => {
+  const camElement = cam.value as unknown as HTMLVideoElement;
+  const stream = camElement.srcObject as MediaStream;
+  const tracks = stream.getTracks();
+  tracks.forEach(function(track) {
+    track.stop();
+  });
+  camElement.srcObject = null;
+  isCamOpen.value = false;
+  clearInterval(intervalId.value);
+};
+
+const recordAndSave = (repeat: number, lengthInMs: number, intervalInMs: number) => {
+  if (repeat == 0) {
+    log('reached max recording limit, quitting');
+    closeCam();
+    return;
+  }
+  const camElement = cam.value;
+  const recording = rec.value;
+  if (!camElement || !recording) {
+    log('cam or recording element not found, quitting');
+    closeCam();
+    return;
+  }
+  let remaining = repeat;
+  const stream = camElement.srcObject as MediaStream;
+  intervalId.value = setInterval(() => {
+    if (remaining === 0){
+      log('reached max recording limit, quitting');
+      closeCam();
+      return;
+    }
+    console.log(`recording ${remaining} more times`);
+    remaining --;
+    startRecording(stream, lengthInMs).then((recordedChunks) => {
+      let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+      recording.src = URL.createObjectURL(recordedBlob);
+      isRecordingReady.value = true;
+      if (downloadedButton.value) {
+        let download = downloadedButton.value as HTMLAnchorElement;
+        download.href = recording.src;
+        const dt = new Date();
+        download.download = `${dt.toLocaleString()}.webm`;
+        console.log("automatically saving the file");
+        download.click();
+        log(
+          `Successfully recorded ${recordedBlob.size} bytes of ${recordedBlob.type} media.`
+        );
+      }
+    });
+  }, intervalInMs);
+}
+
 const openCam = () => {
-  const camElement = document.querySelector('#cam') as HTMLMediaElement;
-  const recording = document.querySelector('#recording') as HTMLMediaElement;
+  const camElement = cam.value as HTMLMediaElement;
+  
   navigator.mediaDevices.getUserMedia({ 
     video: true, 
     audio: false 
@@ -21,36 +93,13 @@ const openCam = () => {
       camElement.play()
     }
     isCamOpen.value = true;
-    return stream;
-  }).then((stream) => {
-    return startRecording(stream, 5000);
-  }).then((recordedChunks) => {
-    let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
-    recording.src = URL.createObjectURL(recordedBlob);
-    isRecordingReady.value = true;
-    let downloadButton = document.querySelector("a#") as HTMLAnchorElement;
-    downloadButton.href = recording.src;
-    downloadButton.download = "RecordedVideo.webm";
-
-    log(
-      `Successfully recorded ${recordedBlob.size} bytes of ${recordedBlob.type} media.`
-    );
-  })
-};
-const closeCam = () => {
-  const camElement = document.querySelector('#cam') as HTMLVideoElement;
-  const stream = camElement.srcObject as MediaStream;
-  const tracks = stream.getTracks();
-  tracks.forEach(function(track) {
-    track.stop();
+  }).catch((err) => {
+    log(`Error: ${err}`);
   });
-  camElement.srcObject = null;
-  isCamOpen.value = false;
 };
 
 function log(message: string) {
-  const logElement = document.querySelector('#log') as HTMLDivElement;
-  logElement.innerHTML += `${message}<br>`;
+  logs.value.push(message);
 }
 
 function wait(delayInMS: number) {
@@ -79,6 +128,11 @@ function startRecording(stream: MediaStream, lengthInMS: number) {
   return Promise.all([stopped, recorded]).then(() => data);
 }
 
+function startRecording2() {
+  console.log(`recording ${repeatTimes.value} ${recordingLength.value}ms-long videos, with ${repeatInterval.value} ms intervals between each recording`);
+  recordAndSave(repeatTimes.value, recordingLength.value, repeatInterval.value);
+}
+
 </script>
 
 <template>
@@ -91,19 +145,42 @@ function startRecording(stream: MediaStream, lengthInMS: number) {
       <code>components/HelloWorld.vue</code> to test HMR
     </p>
   </div>
-  
-  <div>
-    <video id="cam"></video>
 
-    <video id="recording" controls></video>
-  </div>
   <div>
     <button type="button" @click="openCam">Open Camera</button>
+    <div v-if="isCamOpen">
+      <h3>Recording params:</h3>
+      <div>
+        <label>Repeat times: </label>
+        <input v-model="repeatTimes" />
+      </div>
+      <div>
+        <label>Repeat intervals (in ms): </label>
+        <input v-model="repeatInterval" />
+      </div>
+      <div>
+        <label>Recording length: </label>
+        <input v-model="recordingLength" />
+      </div>
+      <button @click="startRecording2">Start Recording</button>
+    </div>
+   
+    
     <button v-if="isCamOpen" type="button" @click="closeCam">Close Camera</button>
-    <a v-if="isRecordingReady" type="button" id="downloadButton">Download Recordings</a>
+    <a v-show="isRecordingReady" type="button" id="downloadButton" ref="downloadedButton">Download Recordings</a>
+  </div>
+  
+  <div>
+    <video id="cam" ref="cam" width="400"></video>
+
+    <video v-show="isCamOpen" id="recording" ref="rec" width="400" controls></video>
   </div>
 
   <div id="log">
+    <h2>Logs</h2>
+    <ul>
+      <li v-for="log in logs">{{ log }}</li>
+    </ul>
   </div>
 
   <p>
