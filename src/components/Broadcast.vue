@@ -26,6 +26,8 @@ const hasError = computed(() => error.value !== "");
 
 const intervalId = ref(-1);
 
+const isRecording = computed(() => intervalId.value !== -1);
+
 const broadcastID = ref("");
 
 const isBroadcasting = ref(false);
@@ -78,6 +80,11 @@ const recordAndSave = () => {
             console.error(e);
         }
     }, repeatInterval.value);
+};
+
+const stopRecording = () => {
+    window.clearInterval(intervalId.value);
+    intervalId.value = -1;
 };
 
 const log = (msg: string) => {
@@ -142,7 +149,13 @@ const sendMessage = () => {
         {{ error }}
     </div>
     <div class="user-cam">
-        <video id="cam" ref="cam" width="400" poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"></video>
+        <video 
+            id="cam" 
+            ref="cam" 
+            width="400" 
+            playsinline
+            autoplay
+            poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"></video>
     </div>
     <div class="control-panel">
         <button 
@@ -161,17 +174,18 @@ const sendMessage = () => {
             <h4>Recording params:</h4>
             <div>
                 <label>Repeat times: </label>
-                <input v-model="repeatTimes" />
+                <input :disabled="isRecording" v-model="repeatTimes" />
             </div>
             <div>
                 <label>Repeat interval: </label>
-                <input v-model="repeatInterval" />
+                <input :disabled="isRecording" v-model="repeatInterval" />
             </div>
             <div>
                 <label>Recording length: </label>
-                <input v-model="recordingLength" />
+                <input :disabled="isRecording" v-model="recordingLength" />
             </div>
-            <button @click="recordAndSave">Start Recording</button>
+            <button v-if="isRecording" @click="stopRecording">Stop Recording</button>
+            <button v-else @click="recordAndSave">Start Recording</button>
         </div>
 
         <div class="broadcasting-options" v-if="isCamOpen">
