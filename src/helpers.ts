@@ -34,7 +34,18 @@ export const recordStream = (
 export const openStream = async (vid: HTMLMediaElement) => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
+            video: {
+                width: {
+                    max: 400,
+                },
+                aspectRatio: {
+                    ideal: 1.7777777778,
+                },
+                facingMode: "user",
+                frameRate: {
+                    ideal: 30,
+                },
+            },
             audio: false,
         });
 
@@ -44,7 +55,7 @@ export const openStream = async (vid: HTMLMediaElement) => {
         };
     } catch (error) {
         console.log("error opening camera: " + error);
-        return;
+        throw error;
     }
 };
 
@@ -63,5 +74,6 @@ export const recordAndUpload = async (
         console.log("uploading to s3 done" + result);
     } catch (error) {
         console.log("error recording and uploading: " + error);
+        throw error;
     }
 }

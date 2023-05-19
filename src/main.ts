@@ -18,4 +18,3 @@ app.use(
 );
 
 app.mount('#app');
-

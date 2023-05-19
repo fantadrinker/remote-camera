@@ -2,8 +2,10 @@
 import { Ref, ref } from "vue";
 import { useAuth0 } from '@auth0/auth0-vue';
 import { openStream, recordAndUpload } from '../helpers'
+import { computed } from "@vue/reactivity";
 
 // some integer properties
+
 const repeatTimes = ref(5);
 
 const repeatInterval = ref(5000);
@@ -11,8 +13,16 @@ const repeatInterval = ref(5000);
 const recordingLength = ref(5000);
 
 const cam: Ref<HTMLMediaElement | null> = ref(null);
+
 const isCamOpen = ref(false);
+
+const isCamOpening = ref(false);
+
 const logs: Ref<Array<string>> = ref([]);
+
+const error: Ref<string> = ref("");
+
+const hasError = computed(() => error.value !== "");
 
 const intervalId = ref(-1);
 
@@ -60,8 +70,13 @@ const recordAndSave = () => {
         }
         console.log(`recording ${remaining} more times`);
         remaining--;
-        const token = await getAccessTokenSilently();
-        recordAndUpload(stream, recordingLength.value, token, user.value.sub || "default");
+        try {
+            const token = await getAccessTokenSilently();
+            await recordAndUpload(stream, recordingLength.value, token, user.value.sub || "default");
+        } catch (e) {
+            error.value = e.message;
+            console.error(e);
+        }
     }, repeatInterval.value);
 };
 
@@ -70,8 +85,15 @@ const log = (msg: string) => {
 };
 
 const openCam = async () => {
-    await openStream(cam.value as HTMLMediaElement)
+    isCamOpening.value = true;
+    try {
+        await openStream(cam.value as HTMLMediaElement)
+    } catch (e) {
+        error.value = e.message;
+        console.error(e);
+    }
     isCamOpen.value = true;
+    isCamOpening.value = false;
 };
 
 const startBroadcasting = () => {
@@ -89,6 +111,13 @@ const startBroadcasting = () => {
     conn.onmessage = (msg) => {
         //const data = JSON.parse(msg.data)
         console.log(msg.data)
+    }
+    conn.onclose = () => {
+        console.log("connection closed")
+    }
+    conn.onerror = (err) => {
+        error.value = err.message;
+        console.error(err);
     }
     // once backend server is setup, send the rdp offer to the server and store it there
     // RTCSessionDescription
@@ -109,43 +138,55 @@ const sendMessage = () => {
 </script>
 
 <template>
-    <div>
-        <h3>Broadcasting</h3>
+    <div v-if="hasError" class="errors">
+        {{ error }}
     </div>
-    <div style="display: flex; flex-direction: column; justify-content: space-evenly;">
-        <div>
-            <button v-if="isCamOpen" type="button" @click="closeCam">
-                Close Camera
-            </button>
-            <button v-else type="button" @click="openCam">
-                Open Camera
-            </button>
-        </div>
-        <div v-if="isCamOpen" style="display: flex; flex-direction: column;">
-            <h3>Recording params:</h3>
-            <div style="display: flex; flex-direction: row" >
+    <div class="user-cam">
+        <video id="cam" ref="cam" width="400" poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"></video>
+    </div>
+    <div class="control-panel">
+        <button 
+            v-if="isCamOpen" 
+            type="button" 
+            @click="closeCam" 
+            :disabled="isCamOpening"
+        >
+            Close Camera
+        </button>
+        <button v-else type="button" @click="openCam">
+            Open Camera
+        </button>
+
+        <div class="recording-options" v-if="isCamOpen" >
+            <h4>Recording params:</h4>
+            <div>
                 <label>Repeat times: </label>
                 <input v-model="repeatTimes" />
             </div>
-            <div style="display: flex; flex-direction: row" >
-                <label>Repeat intervals (in ms): </label>
+            <div>
+                <label>Repeat interval: </label>
                 <input v-model="repeatInterval" />
             </div>
-            <div style="display: flex; flex-direction: row" >
+            <div>
                 <label>Recording length: </label>
                 <input v-model="recordingLength" />
             </div>
             <button @click="recordAndSave">Start Recording</button>
         </div>
 
-        <div v-if="isCamOpen">
-            <div v-if="!isBroadcasting">
-                <input v-if="!isBroadcasting" type="text" v-model="broadcastID" />
-                <button v-if="!isBroadcasting" @click="startBroadcasting">
+        <div class="broadcasting-options" v-if="isCamOpen">
+            <template v-if="!isBroadcasting">
+                <div class="input-group">
+                    <label>Broadcast ID: </label>
+                    <input type="text" v-model="broadcastID" />
+                </div>
+                <button 
+                    @click="startBroadcasting"
+                >
                     Start Broadcasting
                 </button>
-            </div>
-            <div v-else>
+            </template>
+            <template v-else>
                 <input type="text" v-model="broadcastMessage" />
                 <button @click="sendMessage">
                     Broadcast Message
@@ -153,13 +194,8 @@ const sendMessage = () => {
                 <button @click="stopBroadcasting">
                     Stop Broadcasting
                 </button>
-            </div>
-            
+            </template>
         </div>
-    </div>
-
-    <div>
-        <video id="cam" ref="cam" width="400"></video>
     </div>
 
     <div id="log">
@@ -171,7 +207,51 @@ const sendMessage = () => {
 </template>
 
 <style scoped>
-.read-the-docs {
-    color: #888;
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    margin-top: 10px;
+}
+
+.control-panel  button {
+    margin: 1em 2em;
+}
+.recording-options {
+    display: flex;
+    flex-direction: column;
+}
+
+.recording-options > div,
+.broadcasting-options > div {
+    display: flex; 
+    flex-direction: row;
+    margin-block-end: 1em;
+    align-items: baseline;
+}
+
+.recording-options > h4 {
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+}
+
+.input-group > label,
+.recording-options > div > label {
+    flex-grow: 2;
+}
+
+.input-group > input,
+.recording-options > div > input {
+    flex-grow: 1;
+}
+
+.user-cam video {
+    border-radius: 5px;
+}
+
+.broadcasting-options {
+    display: flex;
+    flex-direction: column;
+    margin-top: 10px;
 }
 </style>
