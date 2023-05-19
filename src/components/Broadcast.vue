@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Ref, ref, onMounted } from "vue";
-import { getAPIAuthToken } from "../api";
+import { Ref, ref } from "vue";
+import { useAuth0 } from '@auth0/auth0-vue';
 import { openStream, recordAndUpload } from '../helpers'
 
 // some integer properties
@@ -16,23 +16,15 @@ const logs: Ref<Array<string>> = ref([]);
 
 const intervalId = ref(-1);
 
-const apiAuth = ref("");
-
-const apiAuthValidUntil = ref(0); // timestamp
-
 const broadcastID = ref("");
 
 const isBroadcasting = ref(false);
 
 const broadcastMessage = ref("");
 
-let conn: WebSocket;
+const { getAccessTokenSilently, user } = useAuth0();
 
-onMounted(async () => {
-    const { access_token, expires_in } = await getAPIAuthToken();
-    apiAuth.value = access_token;
-    apiAuthValidUntil.value = Date.now() + expires_in * 1000;
-});
+let conn: WebSocket;
 
 const closeCam = () => {
     const camElement = cam.value as unknown as HTMLVideoElement;
@@ -63,22 +55,13 @@ const recordAndSave = () => {
     intervalId.value = window.setInterval(async () => {
         if (remaining === 0) {
             log("reached max recording limit, quitting");
-            closeCam();
+            window.clearInterval(intervalId.value);
             return;
         }
         console.log(`recording ${remaining} more times`);
         remaining--;
-        
-        const isAuthValid = apiAuthValidUntil.value > Date.now();
-        if (!isAuthValid) {
-            log("api auth token expired, refreshing");
-            getAPIAuthToken().then(({ access_token, expires_in }) => {
-                apiAuth.value = access_token;
-                apiAuthValidUntil.value = Date.now() + expires_in * 1000;
-            });
-        }
-
-        recordAndUpload(stream, recordingLength.value, apiAuth.value);
+        const token = await getAccessTokenSilently();
+        recordAndUpload(stream, recordingLength.value, token, user.value.sub || "default");
     }, repeatInterval.value);
 };
 

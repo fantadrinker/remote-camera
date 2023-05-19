@@ -1,33 +1,7 @@
-export const getAPIAuthToken = async () => {
-    // request oauth token from auth0
-    // return token
-    const body = {
-        client_id: import.meta.env.VITE_AUTH0_CLIENT_ID,
-        client_secret: import.meta.env.VITE_AUTH0_CLIENT_SECRET,
-        audience: import.meta.env.VITE_API_ENDPOINT,
-        grant_type: "client_credentials",
-    };
 
-    const response = await fetch(import.meta.env.VITE_AUTH0_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-        mode: "cors",
-    });
-
-    const { access_token, expires_in } = await response.json();
-
-    return {
-        access_token,
-        expires_in,
-    };
-};
-
-export const getS3AccessUrl = async (access_token: string) => {
+export const getS3AccessUrl = async (access_token: string, sub: string) => {
     const response = await fetch(
-        `${import.meta.env.VITE_API_ENDPOINT}access-url`,
+        `${import.meta.env.VITE_AWS_API_ENDPOINT}access-url?sub=${sub}`,
         {
             method: "GET",
             headers: {
@@ -40,9 +14,9 @@ export const getS3AccessUrl = async (access_token: string) => {
     return response.json();
 };
 
-export const uploadFileToS3 = async (file: Blob, access_token: string) => {
+export const uploadFileToS3 = async (file: Blob, access_token: string, sub: string) => {
     // first get signed url from api
-    const { uploadURL } = await getS3AccessUrl(access_token);
+    const { uploadURL } = await getS3AccessUrl(access_token, sub);
     const response = await fetch(uploadURL, {
         method: "PUT",
         body: file,
@@ -57,7 +31,7 @@ export const submitOffer = async (
     access_token: string
 ) => {
     const response = await fetch(
-        `${import.meta.env.VITE_API_ENDPOINT}broadcast`,
+        `${import.meta.env.VITE_AWS_API_ENDPOINT}broadcast`,
         {
             method: "POST",
             headers: {
@@ -79,7 +53,7 @@ export const retrieveOffer = async (
     access_token: string
 ) => {
     const response = await fetch(
-        `${import.meta.env.VITE_API_ENDPOINT}viewer?id=${id}`,
+        `${import.meta.env.VITE_AWS_API_ENDPOINT}viewer?id=${id}`,
         {
             method: "GET",
             headers: {
@@ -98,7 +72,7 @@ export const connectToBroadcast = async (
     access_token: string
 ) => {
     const response = await fetch(
-        `${import.meta.env.VITE_API_ENDPOINT}viewer?id=${id}`,
+        `${import.meta.env.VITE_AWS_API_ENDPOINT}viewer?id=${id}`,
         {
             method: "POST",
             headers: {

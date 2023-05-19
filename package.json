@@ -9,6 +9,7 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "@auth0/auth0-vue": "^2.2.0",
         "@vue/compat": "^3.3.2",
         "bootstrap": "^5.2.3",
         "bootstrap-vue": "^2.23.1",

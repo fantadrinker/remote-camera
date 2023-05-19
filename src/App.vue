@@ -1,23 +1,42 @@
 <script setup lang="ts">
 // import b-tabs from vue-bootstrap
+import { ref } from "vue";
+import { useAuth0 } from '@auth0/auth0-vue';
 import Broadcast from "./components/Broadcast.vue";
 import Viewer from "./components/Viewer.vue";
-import { ref } from "vue";
+import Profile from "./components/Profile.vue";
 
 const isBroadcast = ref(false);
+const { isAuthenticated, loginWithRedirect, logout } = useAuth0();
+
+function loginApp() {
+    loginWithRedirect();
+}
+
+function logoutApp() {
+    logout({ logoutParams: { returnTo: window.location.origin } });
+}
 </script>
 
 <template>
-    <div>
-        <h3>Select broadcasting or viewing</h3>
-        <input type="checkbox" v-model="isBroadcast" />
-        <label>Broadcast</label>
-    </div>
-    <div v-if="isBroadcast">
-        <Broadcast />
+    <div v-if="isAuthenticated">
+        <div class="user-header">
+            <Profile />
+        </div>
+        <div class="broadcast-toggle">
+            <h3>Select broadcasting or viewing</h3>
+            <input type="checkbox" v-model="isBroadcast" />
+            <label>Broadcast</label>    
+        </div>
+        <div v-if="isBroadcast">
+            <Broadcast />
+        </div>
+        <div v-else>
+            <Viewer />
+        </div>
     </div>
     <div v-else>
-        <Viewer />
+        <button @click="loginApp">Log in</button>
     </div>
 </template>
 
