@@ -10,7 +10,7 @@ app.use(
     domain: import.meta.env.VITE_AUTH0_DOMAIN,
     clientId: import.meta.env.VITE_AUTH0_APP_CLIENT_ID,
     authorizationParams: {
-      redirect_uri: window.location.origin,
+      redirect_uri: process.env.NODE_ENV === 'production' ? `${window.location.origin}/finance-app` : window.location.origin,
       audience: import.meta.env.VITE_AWS_API_ENDPOINT,
     },
     cacheLocation: 'localstorage',
