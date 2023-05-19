@@ -24,6 +24,10 @@ const broadcastID = ref("");
 
 const isBroadcasting = ref(false);
 
+const broadcastMessage = ref("");
+
+let conn: WebSocket;
+
 onMounted(async () => {
     const { access_token, expires_in } = await getAPIAuthToken();
     apiAuth.value = access_token;
@@ -90,10 +94,34 @@ const openCam = async () => {
 const startBroadcasting = () => {
     log(`starting broadcasting with id ${broadcastID.value}`)
     isBroadcasting.value = true;
+    // test websocket api at localhost:8000
+
+    conn = new WebSocket(`ws://localhost:8000`, "broadcast-protocol")
+    conn.onopen = () => {
+        conn.send(JSON.stringify({
+            message_type: 0, // BROADCAST_INIT
+            broadcast_id: broadcastID.value
+        }))
+    }
+    conn.onmessage = (msg) => {
+        //const data = JSON.parse(msg.data)
+        console.log(msg.data)
+    }
+    // once backend server is setup, send the rdp offer to the server and store it there
+    // RTCSessionDescription
     return;
 };
 const stopBroadcasting = () => {
     isBroadcasting.value = false;
+    conn.close();
+}
+
+const sendMessage = () => {
+    conn.send(JSON.stringify({
+        message_type: 1, // BROADCAST_MESSAGE
+        broadcast_id: broadcastID.value,
+        message: broadcastMessage.value
+    }))
 }
 </script>
 
@@ -125,17 +153,25 @@ const stopBroadcasting = () => {
                 <input v-model="recordingLength" />
             </div>
             <button @click="recordAndSave">Start Recording</button>
-            
         </div>
 
         <div v-if="isCamOpen">
-            <input v-if="!isBroadcasting" type="text" v-model="broadcastID" />
-            <button v-if="!isBroadcasting" @click="startBroadcasting">
-                Start Broadcasting
-            </button>
-            <button v-else @click="stopBroadcasting">
-                Stop Broadcasting
-            </button>
+            <div v-if="!isBroadcasting">
+                <input v-if="!isBroadcasting" type="text" v-model="broadcastID" />
+                <button v-if="!isBroadcasting" @click="startBroadcasting">
+                    Start Broadcasting
+                </button>
+            </div>
+            <div v-else>
+                <input type="text" v-model="broadcastMessage" />
+                <button @click="sendMessage">
+                    Broadcast Message
+                </button>
+                <button @click="stopBroadcasting">
+                    Stop Broadcasting
+                </button>
+            </div>
+            
         </div>
     </div>
 

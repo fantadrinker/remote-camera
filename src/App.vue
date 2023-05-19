@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // import b-tabs from vue-bootstrap
-import HelloWorld from "./components/HelloWorld.vue";
 import Broadcast from "./components/Broadcast.vue";
 import Viewer from "./components/Viewer.vue";
 import { ref } from "vue";
