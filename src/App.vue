@@ -7,15 +7,12 @@ import Viewer from "./components/Viewer.vue";
 import Profile from "./components/Profile.vue";
 
 const isBroadcast = ref(false);
-const { isAuthenticated, loginWithRedirect, logout } = useAuth0();
+const { isAuthenticated, loginWithRedirect } = useAuth0();
 
 function loginApp() {
     loginWithRedirect();
 }
 
-function logoutApp() {
-    logout({ logoutParams: { returnTo: window.location.origin } });
-}
 </script>
 
 <template>
