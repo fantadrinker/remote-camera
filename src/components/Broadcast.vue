@@ -43,7 +43,7 @@ const closeCam = () => {
     });
     camElement.srcObject = null;
     isCamOpen.value = false;
-    clearInterval(intervalId.value);
+    window.clearInterval(intervalId.value);
 };
 
 const recordAndSave = () => {
@@ -60,7 +60,7 @@ const recordAndSave = () => {
     }
     let remaining = repeatTimes.value;
     const stream = camElement.srcObject as MediaStream;
-    intervalId.value = setInterval(async () => {
+    intervalId.value = window.setInterval(async () => {
         if (remaining === 0) {
             log("reached max recording limit, quitting");
             closeCam();
