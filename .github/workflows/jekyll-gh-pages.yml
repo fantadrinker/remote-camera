@@ -38,8 +38,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build static html
-        run: npx vite build --base=https://fantadrin
-        ker.github.io/remote-camera/
+        run: npx vite build --base=https://fantadrinker.github.io/remote-camera/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
