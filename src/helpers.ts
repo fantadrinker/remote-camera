@@ -34,17 +34,11 @@ export const recordStream = (
 export const openStream = async (vid: HTMLMediaElement) => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
+            // need to work with this carefully, ios12 might not like it
             video: {
-                width: {
-                    max: 400,
-                },
-                aspectRatio: {
-                    ideal: 1.7777777778,
-                },
+                width: 320,
                 facingMode: "user",
-                frameRate: {
-                    ideal: 30,
-                },
+                frameRate: 15,
             },
             audio: false,
         });
@@ -53,6 +47,7 @@ export const openStream = async (vid: HTMLMediaElement) => {
         vid.onloadedmetadata = () => {
             vid.play();
         };
+        return stream;
     } catch (error) {
         console.log("error opening camera: " + error);
         throw error;
