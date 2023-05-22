@@ -32,8 +32,8 @@ export const getS3DownloadUrl = async (access_token: string, sub: string, key: s
 
 export const uploadFileToS3 = async (file: Blob, access_token: string, sub: string) => {
     // first get signed url from api
-    const { uploadUrl } = await getS3AccessUrl(access_token, sub);
-    const response = await fetch(uploadUrl, {
+    const { uploadURL } = await getS3AccessUrl(access_token, sub);
+    const response = await fetch(uploadURL, {
         method: "PUT",
         body: file,
         mode: "cors",
