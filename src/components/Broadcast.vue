@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Ref, ref } from "vue";
+import { Ref, ref, onBeforeUnmount } from "vue";
 import { useAuth0 } from '@auth0/auth0-vue';
 import { openStream, recordAndUpload } from '../helpers'
 import { computed } from "@vue/reactivity";
@@ -12,7 +12,10 @@ const repeatInterval = ref(5000);
 
 const recordingLength = ref(5000);
 
-const cam: Ref<HTMLMediaElement | null> = ref(null);
+const cam: Ref<HTMLVideoElement | null> = ref(null);
+
+// todo: implement logic around this
+const controlPanelDrawer = ref(false);
 
 const isCamOpen = ref(false);
 
@@ -34,15 +37,35 @@ const isBroadcasting = ref(false);
 
 const broadcastMessage = ref("");
 
+const isDrawerOpen = ref(false);
+
+const controlPanelClasses = computed(() => {
+    return {
+        "control-panel": true,
+        "drawer": controlPanelDrawer.value,
+        "drawer-open": controlPanelDrawer.value && isDrawerOpen.value,
+        "drawer-close": controlPanelDrawer.value && !isDrawerOpen.value
+    }
+});
+
 const { getAccessTokenSilently, user } = useAuth0();
+
+onBeforeUnmount(() => {
+    if(isCamOpen.value) {
+        closeCam();
+    }
+    if (isRecording.value) {
+        window.clearInterval(intervalId.value);
+    }
+})
 
 let conn: WebSocket;
 
-const closeCam = () => {
+const closeCam = async () => {
     const camElement = cam.value as unknown as HTMLVideoElement;
     const stream = camElement.srcObject as MediaStream;
     const tracks = stream.getTracks();
-    tracks.forEach(function (track) {
+    tracks.map(function (track) {
         track.stop();
     });
     camElement.srcObject = null;
@@ -53,6 +76,7 @@ const closeCam = () => {
 const recordAndSave = () => {
     if (repeatTimes.value == 0) {
         log("reached max recording limit, quitting");
+
         closeCam();
         return;
     }
@@ -68,6 +92,7 @@ const recordAndSave = () => {
         if (remaining === 0) {
             log("reached max recording limit, quitting");
             window.clearInterval(intervalId.value);
+            intervalId.value = -1;
             return;
         }
         console.log(`recording ${remaining} more times`);
@@ -157,16 +182,18 @@ const sendMessage = () => {
             autoplay
             poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"></video>
     </div>
-    <div class="control-panel">
+    <div :class="controlPanelClasses">
         <button 
             v-if="isCamOpen" 
             type="button" 
-            @click="closeCam" 
-            :disabled="isCamOpening"
-        >
+            @click="closeCam">
             Close Camera
         </button>
-        <button v-else type="button" @click="openCam">
+        <button 
+            v-else 
+            type="button" 
+            @click="openCam" 
+            :disabled="isCamOpening">
             Open Camera
         </button>
 
@@ -174,7 +201,17 @@ const sendMessage = () => {
             <h4>Recording params:</h4>
             <div>
                 <label>Repeat times: </label>
-                <input :disabled="isRecording" v-model="repeatTimes" />
+                <input 
+                    type="range" 
+                    :disabled="isRecording" 
+                    v-model="repeatTimes" 
+                    :min="1" 
+                    :max="10" 
+                />
+                <input 
+                    :disabled="isRecording" 
+                    v-model="repeatTimes" 
+                />
             </div>
             <div>
                 <label>Repeat interval: </label>
@@ -210,13 +247,13 @@ const sendMessage = () => {
                 </button>
             </template>
         </div>
-    </div>
 
-    <div id="log">
-        <h2>Logs</h2>
-        <ul>
-            <li v-for="log in logs">{{ log }}</li>
-        </ul>
+        <div id="log">
+            <h2>Logs</h2>
+            <ul>
+                <li v-for="log in logs">{{ log }}</li>
+            </ul>
+        </div>
     </div>
 </template>
 
