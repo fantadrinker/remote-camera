@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAuth0 } from '@auth0/auth0-vue';
 import { ref, Ref, onMounted } from 'vue';
-import { getRecordings } from '../api';
+import { getRecordings, getS3DownloadUrl } from '../api';
 import Loading from './Loading.vue';
 
 
@@ -26,6 +26,15 @@ onMounted(async () => {
     loading.value = false
 });
 
+const openRecording = async (key: string) => {
+    const viewUrl = await getS3DownloadUrl(
+        await getAccessTokenSilently(),
+        user.value.sub || "default",
+        key.split("/").pop() || ""
+    );
+    window.open(viewUrl, "_blank");
+};
+
 </script>
 
 <template>
@@ -44,8 +53,7 @@ onMounted(async () => {
                     <tr>
                         <td>{{ recording.LastModified.toLocaleDateString() }}</td>
                         <td>
-                            <button>View</button>
-                            <button>Download</button>
+                            <button @click="() => openRecording(recording.Key)">View</button>
                         </td>
                     </tr>
                 </tbody>
