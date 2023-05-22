@@ -25,6 +25,36 @@ export const uploadFileToS3 = async (file: Blob, access_token: string, sub: stri
     return response;
 };
 
+interface RecordingAPIResponse {
+    Key: string;
+    LastModified: string;
+    Size: number;
+}
+
+export const getRecordings = async (access_token: string, sub: string) => {
+    const response = await fetch(
+        `${import.meta.env.VITE_AWS_API_ENDPOINT}recordings?sub=${sub}`,
+        {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: access_token,
+            },
+            mode: "cors",
+        }
+    );
+    const arr = await response.json();
+    return arr.map((recording: RecordingAPIResponse) => {
+        return {
+            Key: recording.Key,
+            LastModified: new Date(recording.LastModified),
+            Size: recording.Size,
+        };
+    });
+};
+
+// unused stubs
+
 export const submitOffer = async (
     id: string,
     offer: RTCSessionDescriptionInit,
