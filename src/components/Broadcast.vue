@@ -3,6 +3,7 @@ import { Ref, ref, onBeforeUnmount } from "vue";
 import { useAuth0 } from '@auth0/auth0-vue';
 import { openStream, recordAndUpload } from '../helpers'
 import { computed } from "@vue/reactivity";
+import { BroadcastChannel } from '../SignalChannel'
 
 // some integer properties
 
@@ -59,7 +60,7 @@ onBeforeUnmount(() => {
     }
 })
 
-let conn: WebSocket;
+let chan: BroadcastChannel | null = null;
 
 const closeCam = async () => {
     const camElement = cam.value as unknown as HTMLVideoElement;
@@ -131,37 +132,24 @@ const openCam = async () => {
 const startBroadcasting = () => {
     log(`starting broadcasting with id ${broadcastID.value}`)
     isBroadcasting.value = true;
-    // test websocket api at localhost:8000
-
-    conn = new WebSocket(`ws://localhost:8000`, "broadcast-protocol")
-    conn.onopen = () => {
-        conn.send(JSON.stringify({
-            message_type: 0, // BROADCAST_INIT
-            broadcast_id: broadcastID.value
-        }))
-    }
-    conn.onmessage = (msg) => {
-        //const data = JSON.parse(msg.data)
-        console.log(msg.data)
-    }
-    conn.onclose = () => {
-        console.log("connection closed")
-    }
-    conn.onerror = (err) => {
-        error.value = err.message;
-        console.error(err);
-    }
+    chan = new BroadcastChannel(
+        `ws://localhost:8000`, 
+        broadcastID.value,
+        (cam.value as HTMLMediaElement).srcObject as MediaStream
+    )
+    chan.connect();
     // once backend server is setup, send the rdp offer to the server and store it there
     // RTCSessionDescription
     return;
 };
+
 const stopBroadcasting = () => {
     isBroadcasting.value = false;
-    conn.close();
+    chan?.close();
 }
 
 const sendMessage = () => {
-    conn.send(JSON.stringify({
+    chan?.emit(JSON.stringify({
         message_type: 1, // BROADCAST_MESSAGE
         broadcast_id: broadcastID.value,
         message: broadcastMessage.value
@@ -185,13 +173,11 @@ const sendMessage = () => {
     <div :class="controlPanelClasses">
         <button 
             v-if="isCamOpen" 
-            type="button" 
             @click="closeCam">
             Close Camera
         </button>
         <button 
             v-else 
-            type="button" 
             @click="openCam" 
             :disabled="isCamOpening">
             Open Camera
@@ -239,7 +225,7 @@ const sendMessage = () => {
             </template>
             <template v-else>
                 <input type="text" v-model="broadcastMessage" />
-                <button @click="sendMessage">
+                <button @click="sendMessage" :disabled="chan?.isOpen">
                     Broadcast Message
                 </button>
                 <button @click="stopBroadcasting">

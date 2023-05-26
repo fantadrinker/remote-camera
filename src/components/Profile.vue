@@ -13,8 +13,8 @@
 </script>
 
 <template>
-    <div class="user-banner">
-        <div class="profile-pic" @click="toggleExpand">
+    <div class="user-banner"  @click="toggleExpand">
+        <div class="profile-pic">
             <img :src="user.picture" :alt="user.name" width="30" height="30" />
         </div>
         <span>
@@ -44,8 +44,23 @@
     margin-right: 10px;
 }
 
-.profile-pic:hover {
+.user-banner:hover {
     filter: drop-shadow(0 0 2em #646cffaa);
     cursor: pointer;
+}
+
+#user-profile {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #fff;
+    border-radius: 5px;
+    padding: 10px;
+    box-shadow: 0 0 2em #646cffaa;
+    z-index: 1;
 }
 </style>

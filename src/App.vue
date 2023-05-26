@@ -16,12 +16,14 @@ function loginApp() {
 </script>
 
 <template>
-    <div class="app-container" v-if="isAuthenticated">
+    <div v-if="isAuthenticated">
         <Profile />
-        <div class="broadcast-toggle">
-            <h3>Select broadcasting or viewing</h3>
-            <input type="checkbox" v-model="isBroadcast" />
-            <label>Broadcast</label>    
+        <div class="pt-10">
+            <h3 class="text-xl font-bold">Select broadcasting or viewing</h3>
+            <div class="m-2">
+                <input type="checkbox" v-model="isBroadcast" />
+                <label class="mx-2">Broadcast</label>    
+            </div>
         </div>
 
         <Broadcast v-if="isBroadcast" />
