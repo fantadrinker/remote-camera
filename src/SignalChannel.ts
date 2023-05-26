@@ -1,31 +1,8 @@
-function defaultOnMessage(msg: any) {
-    console.log("message received");
-    console.log(msg);
-}
+
 
 function defaultOnOpen() {
     console.log("connection opened");
 }
-
-function defaultOnClose() {
-    console.log("connection closed");
-}
-
-function defaultOnError(err: any) {
-    console.error(err);
-}
-
-enum ChannelState {
-    CLOSED, // not connected
-    BROADCAST_OPENED, // connected to broadcast server, waiting for viewer to connect with offer
-    VIEWER_OPENED, // connected to viewer server, waiting for offer from broadcaster
-}
-
-interface ChannelEventListener {
-    type: number|string;
-    callback: (data: any) => void;
-}
-
 interface EventData {
     message_type: string;
     payload: any;
@@ -65,7 +42,7 @@ export class SignalChannel {
         this.onOpen = onOpen;
     }
 
-    connect() {
+    connect(onClose: () => void) {
         this.conn = new WebSocket(this.url, this.isBroadcaster? "broadcast-protocol": "viewer-protocol");
         this.conn.onmessage = (msg) => {
             const data: EventData = JSON.parse(msg.data);
@@ -79,6 +56,9 @@ export class SignalChannel {
         this.conn.onopen = () => {
             this.isOpen = true;
             this.onOpen();
+        }
+        this.conn.onclose = () => {
+            onClose();
         }
     }
 
@@ -172,6 +152,14 @@ export class BroadcastChannel extends SignalChannel {
         }
     }
 
+    connect() {
+        super.connect(() => {
+            Object.keys(this.pcs).forEach((key) => {
+                this.pcs[key].close();
+            }
+        )});
+    }
+
     emit(data: any) {
         this.conn?.send(JSON.stringify({
             broadcast_id: this.broadcastID,
@@ -224,12 +212,6 @@ export class ViewerChannel extends SignalChannel {
                 //do stuff
             }
         });
-
-        this.pc.addEventListener("track", (event) => {
-            console.log("track received", event);
-            //const video = document.getElementById("video") as HTMLVideoElement;
-            //video.srcObject = event.streams[0];
-        });
         this.eventListeners = {
             "session_created": (data: string) => {
                 this.sessionID = data;
@@ -261,5 +243,16 @@ export class ViewerChannel extends SignalChannel {
                 }
             }
         }
+    }
+
+    connect() {
+        super.connect(() => {
+            this.pc.close();
+        });
+    }
+
+    close() {
+        super.close();
+        this.pc.close();
     }
 }

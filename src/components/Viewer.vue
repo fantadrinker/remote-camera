@@ -22,8 +22,6 @@ let chan: ViewerChannel | null = null;
 
 const { getAccessTokenSilently, user } = useAuth0();
 
-const connectedToRemoteStream = ref(false);
-
 const cam: Ref<HTMLVideoElement | null> = ref(null);
 
 onMounted(async () => {
@@ -61,6 +59,7 @@ const connectToBroadcast = () => {
                     <h4>Connect to a live broadcast</h4>
                     <input v-model="broadcastID" />
                     <button @click="connectToBroadcast">Connect</button>
+                    <button @click="() => chan?.close()">Disconnect</button>
                 </div>
                 <div>
                     <video 
