@@ -3,7 +3,7 @@ import { Ref, ref, onBeforeUnmount } from "vue";
 import { useAuth0 } from '@auth0/auth0-vue';
 import { openStream, recordAndUpload } from '../helpers'
 import { computed } from "@vue/reactivity";
-import {BroadcastChannel} from '../SignalChannel'
+import { BroadcastChannel } from '../SignalChannel'
 
 // some integer properties
 
@@ -135,6 +135,7 @@ const startBroadcasting = () => {
     chan = new BroadcastChannel(
         `ws://localhost:8000`, 
         broadcastID.value,
+        (cam.value as HTMLMediaElement).srcObject as MediaStream
     )
     chan.connect();
     // once backend server is setup, send the rdp offer to the server and store it there

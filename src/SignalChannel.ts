@@ -39,6 +39,11 @@ const rtcConfig: RTCConfiguration = {
     ],
 };
 
+const broadcastOfferOptions: RTCOfferOptions = {
+    offerToReceiveAudio: false,
+    offerToReceiveVideo: true,
+};
+
 export class SignalChannel {
     conn: WebSocket|null = null;
     url: string;
@@ -64,8 +69,6 @@ export class SignalChannel {
         this.conn = new WebSocket(this.url, this.isBroadcaster? "broadcast-protocol": "viewer-protocol");
         this.conn.onmessage = (msg) => {
             const data: EventData = JSON.parse(msg.data);
-            console.log("message received", data);
-            console.log("all listeners", Object.keys(this.eventListeners))
             Object.keys(this.eventListeners).forEach((key) => {
                 const callback = this.eventListeners[key];
                 if (key === data.message_type.toString()) {
@@ -98,9 +101,12 @@ export class SignalChannel {
 
 export class BroadcastChannel extends SignalChannel {
     pcs: Record<string, RTCPeerConnection> = {};
+    stream: MediaStream;
+    iceCandidatePool: RTCIceCandidate[] = [];
     constructor(
         url: string, 
         id: string,
+        stream: MediaStream,
     ) {
         super(url, true, id, () => {
             this.conn?.send(JSON.stringify({
@@ -108,17 +114,41 @@ export class BroadcastChannel extends SignalChannel {
                 broadcast_id: id
             }));
         });
+        this.stream = stream;
         this.eventListeners = {
             // VIEWER_MESSAGE
             3: (data: any) => {
-                console.log(111, data);
                 if (data.type === "offer") {
-                    console.log(222, data.offer)
                     const { session_id, offer } = data;
                     this.pcs[session_id] = new RTCPeerConnection(rtcConfig);
+                    stream.getTracks().forEach((track) => {
+                        this.pcs[session_id].addTrack(track, stream);
+                    });
+                    this.pcs[session_id].addEventListener("icecandidate", (event) => {
+                        console.log(111, event);
+                        if (event.candidate) {
+                            this.conn?.send(JSON.stringify({
+                                message_type: 1, // BROADCAST_MESSAGE
+                                session_id: session_id,
+                                payload: {
+                                    type: "icecandidate",
+                                    icecandidate: event.candidate,
+                                }
+                            }));
+                        }
+                    });
+                    this.pcs[session_id].addEventListener("connectionstatechange", (event) => {
+                        console.log("connection state change", event, this.pcs[session_id].connectionState);
+                    });
                     this.pcs[session_id].setRemoteDescription(offer);
                     this.pcs[session_id].createAnswer().then((answer) => {
                         this.pcs[session_id].setLocalDescription(answer).then(() => {
+                            while (this.iceCandidatePool.length > 0) {
+                                const icecandidate = this.iceCandidatePool.pop();
+                                if (icecandidate) {
+                                    this.pcs[session_id].addIceCandidate(icecandidate);
+                                }
+                            }
                             this.conn?.send(JSON.stringify({
                                 message_type: 1, // BROADCAST_MESSAGE
                                 session_id: session_id,
@@ -128,9 +158,16 @@ export class BroadcastChannel extends SignalChannel {
                                 }
                             }));
                         });
+                        console.log(333, this.pcs[session_id]);
                     });
                 } else if (data.type === "icecandidate") {
                     console.log("icecandidate received", data);
+                    const { session_id, icecandidate } = data;
+                    if (!this.pcs[session_id]) {
+                        this.iceCandidatePool.push(icecandidate);
+                    } else {
+                        this.pcs[session_id].addIceCandidate(icecandidate);
+                    }
                 }
             }
         }
@@ -146,7 +183,7 @@ export class BroadcastChannel extends SignalChannel {
 
 export class ViewerChannel extends SignalChannel {
     sessionID: string = "";
-    pc: RTCPeerConnection|null = null;
+    pc: RTCPeerConnection;
     constructor(
         url: string, 
         id: string, 
@@ -158,11 +195,36 @@ export class ViewerChannel extends SignalChannel {
             }));
         });
         this.pc = new RTCPeerConnection(rtcConfig);
+        /* use trickle ice to send ice candidates as they are generated
+        Once a RTCPeerConnection object is created, the underlying framework uses the provided ICE servers to gather candidates for connectivity establishment (ICE candidates). The event icegatheringstatechange on RTCPeerConnection signals in what state the ICE gathering is (new, gathering or complete).
+        */
+        this.pc.addEventListener("icecandidate", (event) => {
+            console.log(111, event);
+            if (event.candidate) {
+                this.conn?.send(JSON.stringify({
+                    message_type: 3, // VIEWER_MESSAGE
+                    session_id: this.sessionID,
+                    payload: {
+                        type: "icecandidate",
+                        icecandidate: event.candidate,
+                    }
+                }));
+            }
+        });
+        this.pc.addEventListener("connectionstatechange", (event) => {
+            console.log("connection state change", event, this.pc?.connectionState);
+        });
+
+        this.pc.addEventListener("track", (event) => {
+            console.log("track received", event);
+            //const video = document.getElementById("video") as HTMLVideoElement;
+            //video.srcObject = event.streams[0];
+        });
         this.eventListeners = {
             "session_created": (data: string) => {
                 this.sessionID = data;
-                this.pc?.createOffer().then((offer) => {
-                    this.pc?.setLocalDescription(offer).then(() => {
+                this.pc.createOffer(broadcastOfferOptions).then((offer) => {
+                    this.pc.setLocalDescription(offer).then(() => {
                         this.conn?.send(JSON.stringify({
                             message_type: 3, // VIEWER_MESSAGE
                             session_id: data,
@@ -179,9 +241,14 @@ export class ViewerChannel extends SignalChannel {
             1: (data: any) => {
                 if (data.type === "answer") {
                     console.log("answer received", data);
-                    this.pc?.setRemoteDescription(data.answer);
+                    this.pc.setRemoteDescription(data.answer);
+                    console.log(222, this.pc.connectionState)
                 } else if (data.type === "icecandidate") {
                     console.log("icecandidate received", data);
+                    this.pc.addIceCandidate(data.icecandidate).catch((err) => {
+                        console.log("icecandidate error");
+                        console.error(err);
+                    });
                 }
             }
         }
