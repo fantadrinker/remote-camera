@@ -158,7 +158,6 @@ export class BroadcastChannel extends SignalChannel {
                                 }
                             }));
                         });
-                        console.log(333, this.pcs[session_id]);
                     });
                 } else if (data.type === "icecandidate") {
                     console.log("icecandidate received", data);
@@ -184,9 +183,11 @@ export class BroadcastChannel extends SignalChannel {
 export class ViewerChannel extends SignalChannel {
     sessionID: string = "";
     pc: RTCPeerConnection;
+    video: HTMLVideoElement;
     constructor(
         url: string, 
         id: string, 
+        video: HTMLVideoElement,
     ) {
         super(url, false, id, () => {
             this.conn?.send(JSON.stringify({
@@ -194,12 +195,13 @@ export class ViewerChannel extends SignalChannel {
                 broadcast_id: id
             }));
         });
+        console.log(222, video);
+        this.video = video;
         this.pc = new RTCPeerConnection(rtcConfig);
         /* use trickle ice to send ice candidates as they are generated
         Once a RTCPeerConnection object is created, the underlying framework uses the provided ICE servers to gather candidates for connectivity establishment (ICE candidates). The event icegatheringstatechange on RTCPeerConnection signals in what state the ICE gathering is (new, gathering or complete).
         */
         this.pc.addEventListener("icecandidate", (event) => {
-            console.log(111, event);
             if (event.candidate) {
                 this.conn?.send(JSON.stringify({
                     message_type: 3, // VIEWER_MESSAGE
@@ -211,8 +213,16 @@ export class ViewerChannel extends SignalChannel {
                 }));
             }
         });
+        this.pc.addEventListener('track', async (event) => {
+            console.log("track received", event, this.video);
+            const [remoteStream] = event.streams;
+            this.video.srcObject = remoteStream;
+        });
         this.pc.addEventListener("connectionstatechange", (event) => {
             console.log("connection state change", event, this.pc?.connectionState);
+            if (this.pc?.connectionState === "connected"){
+                //do stuff
+            }
         });
 
         this.pc.addEventListener("track", (event) => {
@@ -242,7 +252,6 @@ export class ViewerChannel extends SignalChannel {
                 if (data.type === "answer") {
                     console.log("answer received", data);
                     this.pc.setRemoteDescription(data.answer);
-                    console.log(222, this.pc.connectionState)
                 } else if (data.type === "icecandidate") {
                     console.log("icecandidate received", data);
                     this.pc.addIceCandidate(data.icecandidate).catch((err) => {

@@ -22,6 +22,10 @@ let chan: ViewerChannel | null = null;
 
 const { getAccessTokenSilently, user } = useAuth0();
 
+const connectedToRemoteStream = ref(false);
+
+const cam: Ref<HTMLVideoElement | null> = ref(null);
+
 onMounted(async () => {
     loading.value = true
     recordings.value = await getRecordings(
@@ -41,7 +45,7 @@ const openRecording = async (key: string) => {
 };
 
 const connectToBroadcast = () => {
-    chan = new ViewerChannel(`ws://localhost:8000`, broadcastID.value);
+    chan = new ViewerChannel(`ws://localhost:8000`, broadcastID.value, cam.value ?? document.getElementById("cam") as HTMLVideoElement);
     chan.connect();
 };
 
@@ -58,7 +62,16 @@ const connectToBroadcast = () => {
                     <input v-model="broadcastID" />
                     <button @click="connectToBroadcast">Connect</button>
                 </div>
-                <table >
+                <div>
+                    <video 
+                        id="cam" 
+                        ref="cam" 
+                        width="400" 
+                        playsinline
+                        autoplay
+                        poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"></video>
+                </div>
+                <table>
                     <thead>
                         <tr>
                             <th>Date</th>
