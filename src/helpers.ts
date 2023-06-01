@@ -1,13 +1,12 @@
 import { uploadFileToS3 } from "./api";
 
-
 const wait = (delayInMS: number) => {
     return new Promise((resolve) => setTimeout(resolve, delayInMS));
 };
 
 export const recordStream = (
-    stream: MediaStream, 
-    lengthInMS: number, 
+    stream: MediaStream,
+    lengthInMS: number,
     log: (msg: string) => void = console.log
 ) => {
     let recorder = new MediaRecorder(stream);
@@ -29,9 +28,12 @@ export const recordStream = (
     });
 
     return Promise.all([stopped, recorded]).then(() => data);
-}
+};
 
-export const openStream = async (vid: HTMLMediaElement, onVideoPlay: Function) => {
+export const openStream = async (
+    vid: HTMLMediaElement,
+    onVideoPlay: Function
+) => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
             // need to work with this carefully, ios12 might not like it
@@ -60,12 +62,12 @@ export const recordAndUpload = async (
     stream: MediaStream,
     lengthInMs: number,
     auth: string,
-    sub: string,
+    sub: string
 ) => {
-    try{
+    try {
         const recordedChunks = await recordStream(stream, lengthInMs);
-        const recordedBlob = new Blob(recordedChunks, { 
-            type: "video/webm" 
+        const recordedBlob = new Blob(recordedChunks, {
+            type: "video/webm",
         });
         const result = await uploadFileToS3(recordedBlob, auth, sub);
         console.log("uploading to s3 done" + result);
@@ -73,4 +75,4 @@ export const recordAndUpload = async (
         console.log("error recording and uploading: " + error);
         throw error;
     }
-}
+};
