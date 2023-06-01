@@ -66,12 +66,14 @@ button:focus-visible {
 #app {
     max-width: 500px;
     width: calc(100% - 4rem);
-    margin: 1em auto;
+    margin: auto;
     padding: 2rem;
     text-align: center;
     border-radius: 10px;
     background-color: #242424;
     min-height: 90vh;
+    max-height: 960px;
+    overflow: scroll;
 }
 
 #app div,

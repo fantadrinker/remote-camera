@@ -49,7 +49,7 @@ interface RecordingAPIResponse {
 
 export const getRecordings = async (access_token: string, sub: string) => {
     const response = await fetch(
-        `${import.meta.env.VITE_AWS_API_ENDPOINT}recordings?sub=${sub}`,
+        `${import.meta.env.VITE_AWS_API_ENDPOINT}recordings?sub=${sub}&limit=10`,
         {
             method: "GET",
             headers: {

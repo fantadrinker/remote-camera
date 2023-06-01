@@ -26,7 +26,7 @@ const broadcastOfferOptions: RTCOfferOptions = {
     offerToReceiveVideo: true,
 };
 
-export class SignalChannel {
+export class SignalChannel extends EventTarget {
     conn: WebSocket|null = null;
     broadcastID: string;
     isBroadcaster: boolean;
@@ -39,6 +39,7 @@ export class SignalChannel {
         id: string, 
         onOpen: () => void = defaultOnOpen,
     ) {
+        super()
         console.log("creating signal channel", rtcConfig)
         this.broadcastID = id;
         this.isBroadcaster = isBroadcaster;
@@ -229,11 +230,11 @@ export class ViewerChannel extends SignalChannel {
             console.log("track received", event, this.video);
             const [remoteStream] = event.streams;
             this.video.srcObject = remoteStream;
+            this.dispatchEvent(new CustomEvent("track", { detail: remoteStream }));
         });
-        this.pc.addEventListener("connectionstatechange", (event) => {
-            console.log("connection state change", event, this.pc?.connectionState);
+        this.pc.addEventListener("connectionstatechange", () => {
             if (this.pc?.connectionState === "connected"){
-                //do stuff
+                console.log("connected")
             }
         });
         this.eventListeners = {

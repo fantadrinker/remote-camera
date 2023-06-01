@@ -31,7 +31,7 @@ export const recordStream = (
     return Promise.all([stopped, recorded]).then(() => data);
 }
 
-export const openStream = async (vid: HTMLMediaElement) => {
+export const openStream = async (vid: HTMLMediaElement, onVideoPlay: Function) => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
             // need to work with this carefully, ios12 might not like it
@@ -46,6 +46,7 @@ export const openStream = async (vid: HTMLMediaElement) => {
         vid.srcObject = stream;
         vid.onloadedmetadata = () => {
             vid.play();
+            onVideoPlay();
         };
         return stream;
     } catch (error) {
