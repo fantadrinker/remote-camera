@@ -35,6 +35,3 @@
       <button class="w-full m-1" @click="closePopup">Close</button>
     </div>
 </template>
-<style scoped>
-
-</style>
