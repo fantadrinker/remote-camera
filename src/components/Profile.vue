@@ -6,7 +6,7 @@
             type: Boolean,
             required: false
         },
-        
+
     });
     const expandUserProfile = ref(false);
     const { user, logout } = useAuth0();
@@ -30,7 +30,7 @@
             {{ user.name }}
         </span>
     </div>
-    <div v-if="expandUserProfile" popover id="user-profile" class="flex flex-col justify-end items-end absolute top-9 right-0 bg-gray-700 rounded p-3 shadow-sm z-10 w-40">
+    <div v-if="expandUserProfile" popover id="user-profile" class="flex flex-col justify-end items-end absolute top-16 right-0 bg-gray-700 rounded p-3 shadow-sm z-10 w-40">
       <button class="w-full m-1" @click="logoutApp">LogOut</button>
       <button class="w-full m-1" @click="closePopup">Close</button>
     </div>

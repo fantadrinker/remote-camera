@@ -10,10 +10,11 @@ interface RecordingObject {
     Key: string;
     LastModified: Date;
     Size: number;
+    loading?: boolean;
 }
 
 const recordingsState = reactive({
-    isFetching: false,
+    loading: false,
     recordings: [] as Array<RecordingObject>
 })
 
@@ -33,21 +34,27 @@ const cam: Ref<HTMLVideoElement | null> = ref(null);
 const dummyCanvas: Ref<HTMLCanvasElement | null> = ref(null);
 
 onMounted(async () => {
-    recordingsState.isFetching = true
+    recordingsState.loading = true
     recordingsState.recordings = await getRecordings(
         await getAccessTokenSilently(),
         user.value.sub || "default"
     );
-    recordingsState.isFetching = false
+    recordingsState.loading = false
 });
 
 const openRecording = async (key: string) => {
+    const recordingItem = recordingsState.recordings.find(r => r.Key === key)
+    if (!recordingItem) {
+        return;
+    }
+    recordingItem.loading = true;
     const viewUrl = await getS3DownloadUrl(
         await getAccessTokenSilently(),
         user.value.sub || "default",
         key.split("/").pop() || ""
     );
     window.open(viewUrl, "_blank");
+    recordingItem.loading = false;
 };
 
 const connectToBroadcast = () => {
@@ -77,10 +84,10 @@ const disconnectBroadcast = () => {
 </script>
 
 <template>
-    <div class="flex flex-col items-center mt-16">
+    <div class="flex flex-col items-center mt-16 sm:mt-0">
         <div v-if="!videoConnection.isConnected" class="pb-5">
-            <h4>Connect to a live broadcast</h4>
-            <div class="flex flex-row justify-around items-center">
+            <h4 class="pb-2 font-bold">Connect to a live broadcast</h4>
+            <div class="flex flex-row justify-around items-center pb-2">
                 <label>Broadcast ID: </label>
                 <input v-model="broadcastID" class="mx-3"/>
             </div>
@@ -103,8 +110,8 @@ const disconnectBroadcast = () => {
                 autoplay
                 poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"></video>
         </div>
-        <h4 class="pb-5">Or view past recordings</h4>
-        <Loading v-if="recordingsState.isFetching"/>
+        <h4 class="pb-5 font-bold">Or view past recordings</h4>
+        <Loading v-if="recordingsState.loading"/>
         <table v-else>
             <thead>
                 <tr>
@@ -117,10 +124,11 @@ const disconnectBroadcast = () => {
                     <td>{{ recording.LastModified.toLocaleDateString() }}</td>
                     <td>
                         <button class="ml-2"
+                            :disabled="recording.loading"
                             @click="() => openRecording(recording.Key)">
                             View
                         </button>
-                        <button class="ml-2">
+                        <button :disabled="recording.loading" class="ml-2">
                             Delete
                         </button>
                     </td>

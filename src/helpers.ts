@@ -36,12 +36,10 @@ export const openStream = async (vid: HTMLMediaElement, onVideoPlay: Function) =
         const stream = await navigator.mediaDevices.getUserMedia({
             // need to work with this carefully, ios12 might not like it
             video: {
-                //width: 320,
-                //facingMode: "user",
+                width: 320,
+                facingMode: "user",
                 frameRate: 15,
-                aspectRatio: {
-                    exact: 0.5
-                },
+                // aspectRatio: {exact: 0.5}, // debugging mobile
             },
             audio: false,
         });

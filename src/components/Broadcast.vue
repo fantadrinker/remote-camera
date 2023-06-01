@@ -183,12 +183,12 @@ const toggleBottomBar = () => {
         id="cam" 
         ref="cam" 
         width="400" 
-        class="rounded-md absolute top-0 bottom-0 m-auto"
+        class="rounded-md absolute sm:static top-0 bottom-0 m-auto"
         playsinline
         autoplay
         :poster="vidPoster">
     </video>
-    <div class="flex flex-col justify-evenly pt-3 sm:mt-3 w-full absolute bottom-0 sm:relative bg-zinc-800 bg-opacity-90 rounded-ss-2xl rounded-se-2xl">
+    <div class="flex flex-col justify-evenly pt-3 sm:mt-3 w-full sm:w-96 absolute sm:relative bottom-0 bg-zinc-800 sm:bg-transparent bg-opacity-90 rounded-ss-2xl rounded-se-2xl">
         <div class="flex flex-row justify-evenly items-center">
             <button 
                 v-if="camVideo.isCamOpen" 
@@ -203,7 +203,7 @@ const toggleBottomBar = () => {
                 :disabled="camVideo.isCamOpening">
                 Open Camera
             </button>
-            <button @click="toggleBottomBar">
+            <button @click="toggleBottomBar" class="sm:hidden">
                 ^
             </button>
         </div>

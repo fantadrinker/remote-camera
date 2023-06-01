@@ -39,7 +39,7 @@ const openViewer = () => {
 
 <template>
     <template v-if="isAuthenticated">
-        <div class="flex justify-around absolute z-10 top-0 h-16 w-full">
+        <div class="flex justify-around absolute sm:relative z-10 top-0 sm:mt-4 h-16 w-full">
             <div class="flex items-center">
                 <button :class="viewType === ViewType.Broadcast? 'bg-green-900 mr-2': 'mr-2'" @click="openBroadcast">
                     {{ ViewType.Broadcast }}

@@ -13,8 +13,15 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
+    height: 100%;
 }
+
+@media (max-width: 500px) {
+    .loading {
+        height: 100vh;
+    }
+}
+
 .spinner {
     position: absolute;
     left: calc(50%-30px);
