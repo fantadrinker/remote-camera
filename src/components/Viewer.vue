@@ -43,8 +43,14 @@ const openRecording = async (key: string) => {
 };
 
 const connectToBroadcast = () => {
-    chan = new ViewerChannel(`ws://localhost:8000`, broadcastID.value, cam.value ?? document.getElementById("cam") as HTMLVideoElement);
-    chan.connect();
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
+
+        chan = new ViewerChannel(
+            broadcastID.value, 
+            cam.value ?? document.getElementById("cam") as HTMLVideoElement,
+            stream);
+        chan.connect();
+    })
 };
 
 </script>
