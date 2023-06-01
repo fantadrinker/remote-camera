@@ -107,7 +107,7 @@ button:disabled {
         background-color: #242424;
     }
     #app {
-        width: calc(100% - 2rem);
+        width: 100%;
         margin: 0 auto;
         border-radius: 0;
         height: 100vh;
