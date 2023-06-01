@@ -201,9 +201,21 @@ export class ViewerChannel extends SignalChannel {
                 broadcast_id: id
             }));
         });
-        console.log(222, video);
         this.video = video;
+        
         this.pc = new RTCPeerConnection(rtcConfig);
+
+        // try to get stream, viewer should not provide video stream
+        // but it apparently doesn't work on iphone
+        navigator.mediaDevices.getUserMedia({
+            video: true,
+        }).then((stream) => {
+            stream.getTracks().forEach((track) => {
+                this.pc.addTrack(track, stream);
+            });
+        }).catch((error) => {
+            console.error(error);
+        });
         /* use trickle ice to send ice candidates as they are generated
         Once a RTCPeerConnection object is created, the underlying framework uses the provided ICE servers to gather candidates for connectivity establishment (ICE candidates). The event icegatheringstatechange on RTCPeerConnection signals in what state the ICE gathering is (new, gathering or complete).
         */
