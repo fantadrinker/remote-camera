@@ -132,6 +132,7 @@ export class BroadcastChannel extends SignalChannel {
                     this.pcs[session_id].setRemoteDescription(offer);
                     this.pcs[session_id].createAnswer().then((answer) => {
                         this.pcs[session_id].setLocalDescription(answer).then(() => {
+                            console.log(this.pcs[session_id]);
                             while (this.iceCandidatePool[session_id]?.length > 0) {
                                 const icecandidate = this.iceCandidatePool[session_id].pop();
                                 if (icecandidate) {
@@ -161,6 +162,9 @@ export class BroadcastChannel extends SignalChannel {
                         this.pcs[session_id].addIceCandidate(icecandidate);
                     }
                 }
+            },
+            error: (data: any) => {
+                console.error(data);
             }
         }
     }
@@ -248,6 +252,7 @@ export class ViewerChannel extends SignalChannel {
                 if (data.type === "answer") {
                     console.log("answer received", data);
                     this.pc.setRemoteDescription(data.answer).then(() => {
+                        console.log(this.pc)
                         while (this.iceCandidatePool.length > 0) {
                             const icecandidate = this.iceCandidatePool.pop();
                             if (icecandidate) {
