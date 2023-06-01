@@ -189,7 +189,7 @@ export class ViewerChannel extends SignalChannel {
     constructor(
         id: string, 
         video: HTMLVideoElement,
-        localStream: MediaStream,
+        localStream: MediaStream | null,
     ) {
         // try to get stream, viewer should not provide video stream
         // but it apparently doesn't work on iphone
@@ -203,10 +203,13 @@ export class ViewerChannel extends SignalChannel {
         
         this.pc = new RTCPeerConnection(rtcConfig);
 
-
-        localStream.getTracks().forEach((track) => {
-            this.pc.addTrack(track, localStream);
-        });
+        if (localStream) {
+            localStream.getTracks().forEach((track) => {
+                this.pc.addTrack(track, localStream);
+            });
+        } else {
+            console.warn("starting viewer channel without local stream, this might cause connection issue on iphone")
+        }
         /* use trickle ice to send ice candidates as they are generated
         Once a RTCPeerConnection object is created, the underlying framework uses the provided ICE servers to gather candidates for connectivity establishment (ICE candidates). The event icegatheringstatechange on RTCPeerConnection signals in what state the ICE gathering is (new, gathering or complete).
         */

@@ -24,12 +24,15 @@ const { getAccessTokenSilently, user } = useAuth0();
 
 const cam: Ref<HTMLVideoElement | null> = ref(null);
 
+const canv: Ref<HTMLCanvasElement | null> = ref(null);
+
 onMounted(async () => {
     loading.value = true
     recordings.value = await getRecordings(
         await getAccessTokenSilently(),
         user.value.sub || "default"
     );
+    canv.value = document.getElementById("canvas") as HTMLCanvasElement;
     loading.value = false
 });
 
@@ -43,14 +46,18 @@ const openRecording = async (key: string) => {
 };
 
 const connectToBroadcast = () => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
-
-        chan = new ViewerChannel(
-            broadcastID.value, 
-            cam.value ?? document.getElementById("cam") as HTMLVideoElement,
-            stream);
-        chan.connect();
-    })
+    // create a empty hidden canvas and use it as media stream
+    const stream = canv.value?.captureStream(15)
+    if(!stream) {
+        console.error("Could not create stream")
+        return
+    }
+    chan = new ViewerChannel(
+        broadcastID.value, 
+        cam.value ?? document.getElementById("cam") as HTMLVideoElement,
+        stream);
+    chan.connect();
+    
 };
 
 </script>
@@ -68,6 +75,7 @@ const connectToBroadcast = () => {
                     <button @click="() => chan?.close()">Disconnect</button>
                 </div>
                 <div>
+                    <canvas id="canvas" ref="canvas" width="1" height="1"></canvas>
                     <video 
                         id="cam" 
                         ref="cam" 
