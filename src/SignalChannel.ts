@@ -1,5 +1,5 @@
 // const SIGNAL_SERVER_URL = "wss://34.125.17.77:8000";
-const SIGNAL_SERVER_URL = import.meta.env.MODE === "development" ? "wss://localhost:8000" : import.meta.env.VITE_SIGNAL_SERVER_URL;
+const SIGNAL_SERVER_URL = import.meta.env.MODE === "development" ? "wss://localhost:8000" : import.meta.env.VITE_SIGNAL_SERVER;
 function defaultOnOpen() {
     console.log("connection opened");
 }
