@@ -133,7 +133,6 @@ const startBroadcasting = () => {
     log(`starting broadcasting with id ${broadcastID.value}`)
     isBroadcasting.value = true;
     chan = new BroadcastChannel(
-        `ws://localhost:8000`, 
         broadcastID.value,
         (cam.value as HTMLMediaElement).srcObject as MediaStream
     )
