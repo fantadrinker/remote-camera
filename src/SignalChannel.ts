@@ -1,5 +1,5 @@
-
-
+// const SIGNAL_SERVER_URL = "wss://34.125.17.77:8000";
+const SIGNAL_SERVER_URL = import.meta.env.MODE === "development" ? "wss://localhost:8000" : import.meta.env.VITE_SIGNAL_SERVER_URL;
 function defaultOnOpen() {
     console.log("connection opened");
 }
@@ -13,6 +13,11 @@ const rtcConfig: RTCConfiguration = {
         {
             urls: "stun:stun.l.google.com:19302",
         },
+        {
+            urls: import.meta.env.VITE_TURN_SERVER,
+            username: import.meta.env.VITE_TURN_USERNAME,
+            credential: import.meta.env.VITE_TURN_CREDENTIAL,
+        }
     ],
 };
 
@@ -36,6 +41,7 @@ export class SignalChannel {
         id: string, 
         onOpen: () => void = defaultOnOpen,
     ) {
+        console.log("creating signal channel", rtcConfig)
         this.url = url;
         this.broadcastID = id;
         this.isBroadcaster = isBroadcaster;
@@ -43,8 +49,12 @@ export class SignalChannel {
     }
 
     connect(onClose: () => void) {
-        this.conn = new WebSocket(this.url, this.isBroadcaster? "broadcast-protocol": "viewer-protocol");
+        this.conn = new WebSocket(SIGNAL_SERVER_URL, this.isBroadcaster? "broadcast-protocol": "viewer-protocol");
         this.conn.onmessage = (msg) => {
+            if (msg.data === "ping") {
+                this.conn?.send("pong");
+                return;
+            }
             const data: EventData = JSON.parse(msg.data);
             Object.keys(this.eventListeners).forEach((key) => {
                 const callback = this.eventListeners[key];
@@ -82,7 +92,7 @@ export class SignalChannel {
 export class BroadcastChannel extends SignalChannel {
     pcs: Record<string, RTCPeerConnection> = {};
     stream: MediaStream;
-    iceCandidatePool: RTCIceCandidate[] = [];
+    iceCandidatePool: Record<string, RTCIceCandidate[]> = {};
     constructor(
         url: string, 
         id: string,
@@ -105,7 +115,6 @@ export class BroadcastChannel extends SignalChannel {
                         this.pcs[session_id].addTrack(track, stream);
                     });
                     this.pcs[session_id].addEventListener("icecandidate", (event) => {
-                        console.log(111, event);
                         if (event.candidate) {
                             this.conn?.send(JSON.stringify({
                                 message_type: 1, // BROADCAST_MESSAGE
@@ -123,8 +132,8 @@ export class BroadcastChannel extends SignalChannel {
                     this.pcs[session_id].setRemoteDescription(offer);
                     this.pcs[session_id].createAnswer().then((answer) => {
                         this.pcs[session_id].setLocalDescription(answer).then(() => {
-                            while (this.iceCandidatePool.length > 0) {
-                                const icecandidate = this.iceCandidatePool.pop();
+                            while (this.iceCandidatePool[session_id]?.length > 0) {
+                                const icecandidate = this.iceCandidatePool[session_id].pop();
                                 if (icecandidate) {
                                     this.pcs[session_id].addIceCandidate(icecandidate);
                                 }
@@ -143,7 +152,11 @@ export class BroadcastChannel extends SignalChannel {
                     console.log("icecandidate received", data);
                     const { session_id, icecandidate } = data;
                     if (!this.pcs[session_id]) {
-                        this.iceCandidatePool.push(icecandidate);
+                        if (this.iceCandidatePool[session_id]) {
+                            this.iceCandidatePool[session_id].push(icecandidate);
+                        } else {
+                            this.iceCandidatePool[session_id] = [icecandidate];
+                        }
                     } else {
                         this.pcs[session_id].addIceCandidate(icecandidate);
                     }
@@ -172,6 +185,7 @@ export class ViewerChannel extends SignalChannel {
     sessionID: string = "";
     pc: RTCPeerConnection;
     video: HTMLVideoElement;
+    iceCandidatePool: RTCIceCandidate[] = [];
     constructor(
         url: string, 
         id: string, 
@@ -233,13 +247,24 @@ export class ViewerChannel extends SignalChannel {
             1: (data: any) => {
                 if (data.type === "answer") {
                     console.log("answer received", data);
-                    this.pc.setRemoteDescription(data.answer);
+                    this.pc.setRemoteDescription(data.answer).then(() => {
+                        while (this.iceCandidatePool.length > 0) {
+                            const icecandidate = this.iceCandidatePool.pop();
+                            if (icecandidate) {
+                                this.pc.addIceCandidate(icecandidate);
+                            }
+                        }
+                    });
                 } else if (data.type === "icecandidate") {
                     console.log("icecandidate received", data);
-                    this.pc.addIceCandidate(data.icecandidate).catch((err) => {
-                        console.log("icecandidate error");
-                        console.error(err);
-                    });
+                    if (this.pc.remoteDescription) {
+                        this.pc.addIceCandidate(data.icecandidate).catch((err) => {
+                            console.log("icecandidate error");
+                            console.error(err);
+                        });
+                    } else {
+                        this.iceCandidatePool.push(data.icecandidate);
+                    }
                 }
             }
         }
