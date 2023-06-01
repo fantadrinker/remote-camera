@@ -1,293 +1,337 @@
 <script setup lang="ts">
-import { Ref, ref, onBeforeUnmount } from "vue";
-import { useAuth0 } from '@auth0/auth0-vue';
+import { Ref, ref, onBeforeUnmount, reactive } from 'vue'
+import { useAuth0 } from '@auth0/auth0-vue'
 import { openStream, recordAndUpload } from '../helpers'
-import { computed } from "@vue/reactivity";
+import { computed } from '@vue/reactivity'
 import { BroadcastChannel } from '../SignalChannel'
+import Loading from './Loading.vue'
 
 // some integer properties
 
-const repeatTimes = ref(5);
-
-const repeatInterval = ref(5000);
-
-const recordingLength = ref(5000);
-
-const cam: Ref<HTMLVideoElement | null> = ref(null);
-
-// todo: implement logic around this
-const controlPanelDrawer = ref(false);
-
-const isCamOpen = ref(false);
-
-const isCamOpening = ref(false);
-
-const logs: Ref<Array<string>> = ref([]);
-
-const error: Ref<string> = ref("");
-
-const hasError = computed(() => error.value !== "");
-
-const intervalId = ref(-1);
-
-const isRecording = computed(() => intervalId.value !== -1);
-
-const broadcastID = ref("");
-
-const isBroadcasting = ref(false);
-
-const broadcastMessage = ref("");
-
-const isDrawerOpen = ref(false);
-
-const controlPanelClasses = computed(() => {
-    return {
-        "control-panel": true,
-        "drawer": controlPanelDrawer.value,
-        "drawer-open": controlPanelDrawer.value && isDrawerOpen.value,
-        "drawer-close": controlPanelDrawer.value && !isDrawerOpen.value
-    }
-});
-
-const { getAccessTokenSilently, user } = useAuth0();
-
-onBeforeUnmount(() => {
-    if(isCamOpen.value) {
-        closeCam();
-    }
-    if (isRecording.value) {
-        window.clearInterval(intervalId.value);
-    }
+const recordingOptions = reactive({
+  repeatTimes: 5,
+  repeatInterval: 5000,
+  recordingLength: 5000,
 })
 
-let chan: BroadcastChannel | null = null;
+const camVideo = reactive({
+  isCamOpen: false,
+  isCamOpening: false,
+  aspectRatio: 0,
+})
+
+const expandableState = reactive({
+  recording: false,
+  broadcast: false,
+})
+
+const expandedBottomBar = ref(true)
+
+const cam: Ref<HTMLVideoElement | null> = ref(null)
+
+const logs: Ref<Array<string>> = ref([])
+
+const error: Ref<string> = ref('')
+
+const hasError = computed(() => error.value !== '')
+
+const intervalId = ref(-1)
+
+const isRecording = computed(() => intervalId.value !== -1)
+
+const broadcastID = ref('')
+
+const isBroadcasting = ref(false)
+
+const vidPoster = computed(() => {
+  if (camVideo.isCamOpen) {
+    return ''
+  }
+  return 'https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg'
+})
+
+const { getAccessTokenSilently, user } = useAuth0()
+
+onBeforeUnmount(() => {
+  if (camVideo.isCamOpen) {
+    closeCam()
+  }
+  if (isRecording.value) {
+    window.clearInterval(intervalId.value)
+  }
+})
+
+let chan: BroadcastChannel | null = null
 
 const closeCam = async () => {
-    const camElement = cam.value as unknown as HTMLVideoElement;
-    const stream = camElement.srcObject as MediaStream;
-    const tracks = stream.getTracks();
-    tracks.map(function (track) {
-        track.stop();
-    });
-    camElement.srcObject = null;
-    isCamOpen.value = false;
-    window.clearInterval(intervalId.value);
-};
-
-const recordAndSave = () => {
-    if (repeatTimes.value == 0) {
-        log("reached max recording limit, quitting");
-
-        closeCam();
-        return;
-    }
-    const camElement = cam.value;
-    if (!camElement) {
-        log("cam or recording element not found, quitting");
-        closeCam();
-        return;
-    }
-    let remaining = repeatTimes.value;
-    const stream = camElement.srcObject as MediaStream;
-    intervalId.value = window.setInterval(async () => {
-        if (remaining === 0) {
-            log("reached max recording limit, quitting");
-            window.clearInterval(intervalId.value);
-            intervalId.value = -1;
-            return;
-        }
-        console.log(`recording ${remaining} more times`);
-        remaining--;
-        try {
-            const token = await getAccessTokenSilently();
-            await recordAndUpload(stream, recordingLength.value, token, user.value.sub || "default");
-        } catch (e) {
-            error.value = e.message;
-            console.error(e);
-        }
-    }, repeatInterval.value);
-};
-
-const stopRecording = () => {
-    window.clearInterval(intervalId.value);
-    intervalId.value = -1;
-};
-
-const log = (msg: string) => {
-    logs.value.push(msg);
-};
-
-const openCam = async () => {
-    isCamOpening.value = true;
-    try {
-        await openStream(cam.value as HTMLMediaElement)
-    } catch (e) {
-        error.value = e.message;
-        console.error(e);
-    }
-    isCamOpen.value = true;
-    isCamOpening.value = false;
-};
-
-const startBroadcasting = () => {
-    log(`starting broadcasting with id ${broadcastID.value}`)
-    isBroadcasting.value = true;
-    chan = new BroadcastChannel(
-        broadcastID.value,
-        (cam.value as HTMLMediaElement).srcObject as MediaStream
-    )
-    chan.connect();
-    // once backend server is setup, send the rdp offer to the server and store it there
-    // RTCSessionDescription
-    return;
-};
-
-const stopBroadcasting = () => {
-    isBroadcasting.value = false;
-    chan?.close();
+  const camElement = cam.value as unknown as HTMLVideoElement
+  const stream = camElement.srcObject as MediaStream
+  const tracks = stream.getTracks()
+  tracks.map(function (track) {
+    track.stop()
+  })
+  camElement.srcObject = null
+  camVideo.isCamOpen = false
+  window.clearInterval(intervalId.value)
 }
 
-const sendMessage = () => {
-    chan?.emit(JSON.stringify({
-        message_type: 1, // BROADCAST_MESSAGE
-        broadcast_id: broadcastID.value,
-        message: broadcastMessage.value
-    }))
+const recordAndSave = () => {
+  const { repeatTimes, repeatInterval, recordingLength } = recordingOptions
+
+  if (repeatTimes == 0) {
+    log('reached max recording limit, quitting')
+
+    closeCam()
+    return
+  }
+  const camElement = cam.value
+  if (!camElement) {
+    log('cam or recording element not found, quitting')
+    closeCam()
+    return
+  }
+  let remaining = repeatTimes
+  const stream = camElement.srcObject as MediaStream
+  intervalId.value = window.setInterval(async () => {
+    if (remaining === 0) {
+      log('reached max recording limit, quitting')
+      window.clearInterval(intervalId.value)
+      intervalId.value = -1
+      return
+    }
+    console.log(`recording ${remaining} more times`)
+    remaining--
+    try {
+      const token = await getAccessTokenSilently()
+      await recordAndUpload(
+        stream,
+        recordingLength,
+        token,
+        user.value.sub || 'default'
+      )
+    } catch (e) {
+      error.value = e.message
+      console.error(e)
+    }
+  }, repeatInterval)
+}
+
+const stopRecording = () => {
+  window.clearInterval(intervalId.value)
+  intervalId.value = -1
+}
+
+const log = (msg: string) => {
+  logs.value.push(msg)
+}
+
+const openCam = async () => {
+  camVideo.isCamOpening = true
+  try {
+    await openStream(cam.value as HTMLMediaElement, () => {
+      camVideo.isCamOpen = true
+      camVideo.isCamOpening = false
+      if (cam.value) {
+        camVideo.aspectRatio = cam.value?.videoHeight / cam.value?.videoWidth
+      }
+    })
+  } catch (e) {
+    error.value = e.message
+    console.error(e)
+  }
+}
+
+const startBroadcasting = () => {
+  log(`starting broadcasting with id ${broadcastID.value}`)
+  isBroadcasting.value = true
+  chan = new BroadcastChannel(
+    broadcastID.value,
+    (cam.value as HTMLMediaElement).srcObject as MediaStream
+  )
+  chan.connect()
+  // once backend server is setup, send the rdp offer to the server and store it there
+  // RTCSessionDescription
+  return
+}
+
+const stopBroadcasting = () => {
+  isBroadcasting.value = false
+  chan?.close()
+}
+
+const toggleRecordingOptions = () => {
+  expandableState.recording = !expandableState.recording
+}
+
+const toggleBroadcastingOptions = () => {
+  expandableState.broadcast = !expandableState.broadcast
+}
+
+const toggleBottomBar = () => {
+  expandedBottomBar.value = !expandedBottomBar.value
 }
 </script>
 
 <template>
-    <div v-if="hasError" class="errors">
-        {{ error }}
+  <div v-if="hasError" class="errors">
+    {{ error }}
+  </div>
+  <div
+    v-if="camVideo.isCamOpening"
+    class="absolute w-full h-full bg-opacity-50 bg-slate-500 z-10"
+  >
+    <Loading />
+  </div>
+  <video
+    id="cam"
+    ref="cam"
+    width="400"
+    class="rounded-md absolute sm:static top-0 bottom-0 m-auto"
+    playsinline
+    autoplay
+    :poster="vidPoster"
+  ></video>
+  <div
+    class="flex flex-col justify-evenly pt-3 sm:mt-3 w-full sm:w-96 absolute sm:relative bottom-0 bg-zinc-800 sm:bg-transparent bg-opacity-90 rounded-ss-2xl rounded-se-2xl"
+  >
+    <div class="flex flex-row justify-evenly items-center">
+      <button v-if="camVideo.isCamOpen" class="mx-4 my-2" @click="closeCam">
+        Close Camera
+      </button>
+      <button
+        v-else
+        class="mx-4 my-2"
+        @click="openCam"
+        :disabled="camVideo.isCamOpening"
+      >
+        Open Camera
+      </button>
+      <button @click="toggleBottomBar" class="sm:hidden">^</button>
     </div>
-    <div class="user-cam">
-        <video 
-            id="cam" 
-            ref="cam" 
-            width="400" 
-            playsinline
-            autoplay
-            poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"></video>
-    </div>
-    <div :class="controlPanelClasses">
-        <button 
-            v-if="isCamOpen" 
-            @click="closeCam">
-            Close Camera
+
+    <div
+      v-show="expandedBottomBar"
+      class="recording-options"
+      v-if="camVideo.isCamOpen"
+    >
+      <div class="flex flex-row justify-between">
+        <h4>Recording Options:</h4>
+        <button @click="toggleRecordingOptions">
+          {{ expandableState.recording ? '-' : '|' }}
         </button>
-        <button 
-            v-else 
-            @click="openCam" 
-            :disabled="isCamOpening">
-            Open Camera
+      </div>
+
+      <template v-if="expandableState.recording">
+        <div>
+          <label>Repeat times: </label>
+          <input
+            type="range"
+            :disabled="isRecording"
+            v-model="recordingOptions.repeatTimes"
+            :min="1"
+            :max="10"
+          />
+          <input
+            :disabled="isRecording"
+            v-model="recordingOptions.repeatTimes"
+          />
+        </div>
+        <div>
+          <label>Repeat interval: </label>
+          <input
+            :disabled="isRecording"
+            v-model="recordingOptions.repeatInterval"
+          />
+        </div>
+        <div>
+          <label>Recording length: </label>
+          <input
+            :disabled="isRecording"
+            v-model="recordingOptions.recordingLength"
+          />
+        </div>
+        <button class="mx-4 my-2" v-if="isRecording" @click="stopRecording">
+          Stop Recording
         </button>
-
-        <div class="recording-options" v-if="isCamOpen" >
-            <h4>Recording params:</h4>
-            <div>
-                <label>Repeat times: </label>
-                <input 
-                    type="range" 
-                    :disabled="isRecording" 
-                    v-model="repeatTimes" 
-                    :min="1" 
-                    :max="10" 
-                />
-                <input 
-                    :disabled="isRecording" 
-                    v-model="repeatTimes" 
-                />
-            </div>
-            <div>
-                <label>Repeat interval: </label>
-                <input :disabled="isRecording" v-model="repeatInterval" />
-            </div>
-            <div>
-                <label>Recording length: </label>
-                <input :disabled="isRecording" v-model="recordingLength" />
-            </div>
-            <button v-if="isRecording" @click="stopRecording">Stop Recording</button>
-            <button v-else @click="recordAndSave">Start Recording</button>
-        </div>
-
-        <div class="broadcasting-options" v-if="isCamOpen">
-            <template v-if="!isBroadcasting">
-                <div class="input-group">
-                    <label>Broadcast ID: </label>
-                    <input type="text" v-model="broadcastID" />
-                </div>
-                <button 
-                    @click="startBroadcasting"
-                >
-                    Start Broadcasting
-                </button>
-            </template>
-            <template v-else>
-                <input type="text" v-model="broadcastMessage" />
-                <button @click="sendMessage" :disabled="chan?.isOpen">
-                    Broadcast Message
-                </button>
-                <button @click="stopBroadcasting">
-                    Stop Broadcasting
-                </button>
-            </template>
-        </div>
-
-        <div id="log">
-            <h2>Logs</h2>
-            <ul>
-                <li v-for="log in logs">{{ log }}</li>
-            </ul>
-        </div>
+        <button class="mx-4 my-2" v-else @click="recordAndSave">
+          Start Recording
+        </button>
+      </template>
     </div>
+
+    <div
+      v-show="expandedBottomBar"
+      class="broadcasting-options"
+      v-if="camVideo.isCamOpen"
+    >
+      <div class="flex flex-col justify-between">
+        <h4>Broadcasting Options</h4>
+        <button @click="toggleBroadcastingOptions">
+          {{ expandableState.broadcast ? '-' : '|' }}
+        </button>
+      </div>
+      <template v-if="expandableState.broadcast">
+        <template v-if="!isBroadcasting">
+          <div class="input-group">
+            <label>Broadcast ID: </label>
+            <input type="text" v-model="broadcastID" />
+          </div>
+          <button class="mx-4 my-2" @click="startBroadcasting">
+            Start Broadcasting
+          </button>
+        </template>
+        <template v-else>
+          <button class="mx-4 my-2" @click="stopBroadcasting">
+            Stop Broadcasting
+          </button>
+        </template>
+      </template>
+    </div>
+
+    <div v-show="expandedBottomBar" id="log">
+      <h2>Logs</h2>
+      <ul>
+        <li v-for="log in logs">{{ log }}</li>
+      </ul>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.control-panel {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
-    margin-top: 10px;
-}
-
-.control-panel  button {
-    margin: 1em 2em;
+.control-panel button {
+  margin: 1em 2em;
 }
 .recording-options {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .recording-options > div,
 .broadcasting-options > div {
-    display: flex; 
-    flex-direction: row;
-    margin-block-end: 1em;
-    align-items: baseline;
+  display: flex;
+  flex-direction: row;
+  margin-block-end: 1em;
+  align-items: baseline;
 }
 
 .recording-options > h4 {
-    margin-block-start: 1em;
-    margin-block-end: 1em;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
 }
 
 .input-group > label,
 .recording-options > div > label {
-    flex-grow: 2;
+  flex-grow: 2;
 }
 
 .input-group > input,
 .recording-options > div > input {
-    flex-grow: 1;
-}
-
-.user-cam video {
-    border-radius: 5px;
+  flex-grow: 1;
 }
 
 .broadcasting-options {
-    display: flex;
-    flex-direction: column;
-    margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
 }
 </style>

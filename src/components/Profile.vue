@@ -1,66 +1,44 @@
 <script setup lang="ts">
-    import { ref } from "vue";
-    import { useAuth0 } from '@auth0/auth0-vue';
-
-    const expandUserProfile = ref(false);
-    const { user, logout } = useAuth0();
-    const toggleExpand = () => {
-        expandUserProfile.value = !expandUserProfile.value;
-    }
-    const logoutApp = () => {
-        logout();
-    }
+import { ref } from 'vue'
+import { useAuth0 } from '@auth0/auth0-vue'
+const props = defineProps({
+  showUserName: {
+    type: Boolean,
+    required: false,
+  },
+})
+const expandUserProfile = ref(false)
+const { user, logout } = useAuth0()
+const toggleExpand = () => {
+  expandUserProfile.value = !expandUserProfile.value
+}
+const logoutApp = () => {
+  logout()
+}
+const closePopup = () => {
+  expandUserProfile.value = false
+}
 </script>
 
 <template>
-    <div class="user-banner"  @click="toggleExpand">
-        <div class="profile-pic">
-            <img :src="user.picture" :alt="user.name" width="30" height="30" />
-        </div>
-        <span>
-            {{ user.name }}
-        </span>
+  <div
+    class="flex flex-row justify-end items-center hover:cursor-pointer hover:drop-shadow"
+    @click="toggleExpand"
+  >
+    <div class="h-7 w-7 rounded-full overflow-hidden mr-3">
+      <img :src="user.picture" :alt="user.name" width="30" height="30" />
     </div>
-    <div v-if="expandUserProfile" popover id="user-profile">
-      <h2>User Profile</h2>
-      <pre>
-        <code>{{ user }}</code>
-      </pre>
-      <button @click="logoutApp">LogOut</button>
-    </div>
+    <span v-if="props.showUserName">
+      {{ user.name }}
+    </span>
+  </div>
+  <div
+    v-if="expandUserProfile"
+    popover
+    id="user-profile"
+    class="flex flex-col justify-end items-end absolute top-16 right-0 bg-gray-700 rounded p-3 shadow-sm z-10 w-40"
+  >
+    <button class="w-full m-1" @click="logoutApp">LogOut</button>
+    <button class="w-full m-1" @click="closePopup">Close</button>
+  </div>
 </template>
-<style scoped>
-.user-banner {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
-    align-items: center;
-}
-.profile-pic {
-    height: 30px;
-    width: 30px;
-    border-radius: 50%;
-    overflow: hidden;
-    margin-right: 10px;
-}
-
-.user-banner:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-    cursor: pointer;
-}
-
-#user-profile {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: flex-end;
-    position: absolute;
-    top: 0;
-    right: 0;
-    background-color: #fff;
-    border-radius: 5px;
-    padding: 10px;
-    box-shadow: 0 0 2em #646cffaa;
-    z-index: 1;
-}
-</style>
