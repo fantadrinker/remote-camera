@@ -29,7 +29,6 @@ a:hover {
 
 body {
     margin: 0;
-    display: flex;
     place-items: center;
     min-width: 320px;
     min-height: 100vh;
@@ -67,7 +66,7 @@ button:focus-visible {
     max-width: 500px;
     width: calc(100% - 4rem);
     margin: auto;
-    padding: 2rem;
+    padding: 0;
     text-align: center;
     border-radius: 10px;
     background-color: #242424;
@@ -106,5 +105,7 @@ button:focus-visible {
         width: calc(100% - 2rem);
         margin: 0 auto;
         border-radius: 0;
+        height: 100vh;
+        overflow: hidden;
     }
 }

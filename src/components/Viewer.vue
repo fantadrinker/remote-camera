@@ -77,7 +77,7 @@ const disconnectBroadcast = () => {
 </script>
 
 <template>
-    <div class="flex flex-col items-center">
+    <div class="flex flex-col items-center mt-16">
         <div v-if="!videoConnection.isConnected" class="pb-5">
             <h4>Connect to a live broadcast</h4>
             <div class="flex flex-row justify-around items-center">

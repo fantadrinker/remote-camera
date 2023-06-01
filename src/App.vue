@@ -39,7 +39,7 @@ const openViewer = () => {
 
 <template>
     <template v-if="isAuthenticated">
-        <div class="flex justify-between relative h-16">
+        <div class="flex justify-around absolute z-10 top-0 h-16 w-full">
             <div class="flex items-center">
                 <button :class="viewType === ViewType.Broadcast? 'bg-green-900 mr-2': 'mr-2'" @click="openBroadcast">
                     {{ ViewType.Broadcast }}
@@ -51,7 +51,7 @@ const openViewer = () => {
             
             <Profile :show-user-name="false" />
         </div>
-        <div class="flex flex-col justify-center mt-9 items-center relative">
+        <div class="flex flex-col sm:justify-center items-center sm:relative sm:mt-9 ">
 
             <Broadcast v-if="isBroadcast" />
             

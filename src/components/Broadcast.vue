@@ -17,12 +17,15 @@ const recordingOptions = reactive({
 const camVideo = reactive({
     isCamOpen: false,
     isCamOpening: false,
+    aspectRatio: 0,
 })
 
 const expandableState = reactive({
     recording: false,
     broadcast: false,
 })
+
+const expandedBottomBar = ref(true);
 
 const cam: Ref<HTMLVideoElement | null> = ref(null);
 
@@ -127,7 +130,10 @@ const openCam = async () => {
         await openStream(cam.value as HTMLMediaElement, () => {
             camVideo.isCamOpen = true;
             camVideo.isCamOpening = false;
-        })
+            if (cam.value) {
+                camVideo.aspectRatio = cam.value?.videoHeight / cam.value?.videoWidth;
+            }
+        })        
     } catch (e) {
         error.value = e.message;
         console.error(e);
@@ -160,40 +166,50 @@ const toggleBroadcastingOptions = () => {
     expandableState.broadcast = !expandableState.broadcast;
 }
 
+const toggleBottomBar = () => {
+    expandedBottomBar.value = !expandedBottomBar.value;
+}
+
 </script>
 
 <template>
     <div v-if="hasError" class="errors">
         {{ error }}
     </div>
-    <div v-if="camVideo.isCamOpening" class="absolute w-full h-full bg-opacity-75 bg-white">
+    <div v-if="camVideo.isCamOpening" class="absolute w-full h-full bg-opacity-50 bg-slate-500 z-10">
         <Loading />
     </div>
     <video 
         id="cam" 
         ref="cam" 
         width="400" 
-        class="rounded-md"
+        class="rounded-md absolute top-0 bottom-0 m-auto"
         playsinline
         autoplay
         :poster="vidPoster">
     </video>
-    <div class="flex flex-col justify-evenly mt-3 w-full">
-        <button 
-            v-if="camVideo.isCamOpen" 
-            class="mx-4 my-2"
-            @click="closeCam">
-            Close Camera
-        </button>
-        <button 
-            v-else 
-            class="mx-4 my-2"
-            @click="openCam" 
-            :disabled="camVideo.isCamOpening">
-            Open Camera
-        </button>
+    <div class="flex flex-col justify-evenly pt-3 sm:mt-3 w-full absolute bottom-0 sm:relative bg-zinc-800 bg-opacity-90 rounded-ss-2xl rounded-se-2xl">
+        <div class="flex flex-row justify-evenly items-center">
+            <button 
+                v-if="camVideo.isCamOpen" 
+                class="mx-4 my-2"
+                @click="closeCam">
+                Close Camera
+            </button>
+            <button 
+                v-else 
+                class="mx-4 my-2"
+                @click="openCam" 
+                :disabled="camVideo.isCamOpening">
+                Open Camera
+            </button>
+            <button @click="toggleBottomBar">
+                ^
+            </button>
+        </div>
+        
 
-        <div class="recording-options" v-if="camVideo.isCamOpen" >
+        <div v-show="expandedBottomBar" class="recording-options" v-if="camVideo.isCamOpen" >
             <div class="flex flex-row justify-between">
                 <h4>Recording Options:</h4>
                 <button @click="toggleRecordingOptions">{{ expandableState.recording? '-': '|' }}</button>
@@ -227,7 +243,7 @@ const toggleBroadcastingOptions = () => {
             </template>
         </div>
 
-        <div class="broadcasting-options" v-if="camVideo.isCamOpen">
+        <div v-show="expandedBottomBar" class="broadcasting-options" v-if="camVideo.isCamOpen">
             <div class="flex flex-col justify-between">
 
                 <h4>Broadcasting Options</h4>
@@ -255,7 +271,7 @@ const toggleBroadcastingOptions = () => {
             
         </div>
 
-        <div id="log">
+        <div v-show="expandedBottomBar" id="log">
             <h2>Logs</h2>
             <ul>
                 <li v-for="log in logs">{{ log }}</li>
