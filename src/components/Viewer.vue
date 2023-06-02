@@ -68,7 +68,9 @@ const connectToBroadcast = () => {
     cam.value ?? (document.getElementById('cam') as HTMLVideoElement),
     stream
   )
-  chan.connect()
+  chan.addEventListener('initialized', () => {
+    chan?.connect()
+  })
   chan.addEventListener('track', () => {
     videoConnection.isConnected = true
     videoConnection.isConnecting = false

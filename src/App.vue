@@ -16,7 +16,6 @@ const viewType = ref(ViewType.Broadcast)
 
 const isBroadcast = computed(() => viewType.value === ViewType.Broadcast)
 
-
 const { isAuthenticated, loginWithRedirect } = useAuth0()
 
 function loginApp() {

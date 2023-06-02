@@ -1,7 +1,7 @@
 // const SIGNAL_SERVER_URL = "wss://34.125.17.77:8000";
 const SIGNAL_SERVER_URL =
   import.meta.env.MODE === 'development'
-    ? 'wss://localhost:8000'
+    ? 'ws://localhost:8000'
     : import.meta.env.VITE_SIGNAL_SERVER
 function defaultOnOpen() {
   console.log('connection opened')
@@ -11,22 +11,32 @@ interface EventData {
   payload: any
 }
 
-const rtcConfig: RTCConfiguration = {
-  iceServers: [
-    {
-      urls: 'stun:stun.l.google.com:19302',
-    },
-    {
-      urls: import.meta.env.VITE_TURN_SERVER,
-      username: import.meta.env.VITE_TURN_USERNAME,
-      credential: import.meta.env.VITE_TURN_CREDENTIAL,
-    },
-  ],
-}
-
 const broadcastOfferOptions: RTCOfferOptions = {
   offerToReceiveAudio: false,
   offerToReceiveVideo: true,
+}
+
+const getRTCConfig = async () => {
+  const iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }]
+  if (import.meta.env.MODE === 'development') {
+    return { iceServers }
+  }
+  try {
+    const response = await fetch(
+      `https://remotecamrtc.metered.live/api/v1/turn/credentials?apiKey=${
+        import.meta.env.VITE_ICE_SERVER_API_KEY
+      }`
+    )
+    // Saving the response in the iceServers array
+    const turnServers: RTCIceServer[] = await response.json()
+
+    return {
+      iceServers: [...iceServers, ...turnServers],
+    }
+  } catch (error) {
+    console.log('failed fetching turn server info', error)
+    return { iceServers }
+  }
 }
 
 export class SignalChannel extends EventTarget {
@@ -43,7 +53,6 @@ export class SignalChannel extends EventTarget {
     onOpen: () => void = defaultOnOpen
   ) {
     super()
-    console.log('creating signal channel', rtcConfig)
     this.broadcastID = id
     this.isBroadcaster = isBroadcaster
     this.onOpen = onOpen
@@ -111,9 +120,10 @@ export class BroadcastChannel extends SignalChannel {
     this.stream = stream
     this.eventListeners = {
       // VIEWER_MESSAGE
-      3: (data: any) => {
+      3: async (data: any) => {
         if (data.type === 'offer') {
           const { session_id, offer } = data
+          const rtcConfig = await getRTCConfig()
           this.pcs[session_id] = new RTCPeerConnection(rtcConfig)
           stream.getTracks().forEach(track => {
             this.pcs[session_id].addTrack(track, stream)
@@ -145,7 +155,6 @@ export class BroadcastChannel extends SignalChannel {
           this.pcs[session_id].setRemoteDescription(offer)
           this.pcs[session_id].createAnswer().then(answer => {
             this.pcs[session_id].setLocalDescription(answer).then(() => {
-              console.log(this.pcs[session_id])
               while (this.iceCandidatePool[session_id]?.length > 0) {
                 const icecandidate = this.iceCandidatePool[session_id].pop()
                 if (icecandidate) {
@@ -165,7 +174,6 @@ export class BroadcastChannel extends SignalChannel {
             })
           })
         } else if (data.type === 'icecandidate') {
-          console.log('icecandidate received', data)
           const { session_id, icecandidate } = data
           if (!this.pcs[session_id]) {
             if (this.iceCandidatePool[session_id]) {
@@ -204,7 +212,7 @@ export class BroadcastChannel extends SignalChannel {
 
 export class ViewerChannel extends SignalChannel {
   sessionID: string = ''
-  pc: RTCPeerConnection
+  pc: RTCPeerConnection | null = null
   video: HTMLVideoElement
   iceCandidatePool: RTCIceCandidate[] = []
   constructor(
@@ -223,51 +231,54 @@ export class ViewerChannel extends SignalChannel {
       )
     })
     this.video = video
-
-    this.pc = new RTCPeerConnection(rtcConfig)
-
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        this.pc.addTrack(track, localStream)
-      })
-    } else {
-      console.warn(
-        'starting viewer channel without local stream, this might cause connection issue on iphone'
-      )
-    }
-    /* use trickle ice to send ice candidates as they are generated
-        Once a RTCPeerConnection object is created, the underlying framework uses the provided ICE servers to gather candidates for connectivity establishment (ICE candidates). The event icegatheringstatechange on RTCPeerConnection signals in what state the ICE gathering is (new, gathering or complete).
-        */
-    this.pc.addEventListener('icecandidate', event => {
-      if (event.candidate) {
-        this.conn?.send(
-          JSON.stringify({
-            message_type: 3, // VIEWER_MESSAGE
-            session_id: this.sessionID,
-            payload: {
-              type: 'icecandidate',
-              icecandidate: event.candidate,
-            },
-          })
+    this.pc = null
+    getRTCConfig().then(rtcConfig => {
+      this.pc = new RTCPeerConnection(rtcConfig)
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          this.pc?.addTrack(track, localStream)
+        })
+      } else {
+        console.warn(
+          'starting viewer channel without local stream, this might cause connection issue on iphone'
         )
       }
+      /* use trickle ice to send ice candidates as they are generated
+                Once a RTCPeerConnection object is created, the underlying framework uses the provided ICE servers to gather candidates for connectivity establishment (ICE candidates). The event icegatheringstatechange on RTCPeerConnection signals in what state the ICE gathering is (new, gathering or complete).
+                */
+      this.pc.addEventListener('icecandidate', event => {
+        if (event.candidate) {
+          this.conn?.send(
+            JSON.stringify({
+              message_type: 3, // VIEWER_MESSAGE
+              session_id: this.sessionID,
+              payload: {
+                type: 'icecandidate',
+                icecandidate: event.candidate,
+              },
+            })
+          )
+        }
+      })
+      this.pc.addEventListener('track', async event => {
+        console.log('track received', event, this.video)
+        const [remoteStream] = event.streams
+        this.video.srcObject = remoteStream
+        this.dispatchEvent(new CustomEvent('track', { detail: remoteStream }))
+      })
+      this.pc.addEventListener('connectionstatechange', () => {
+        if (this.pc?.connectionState === 'connected') {
+          console.log('connected')
+        }
+      })
+      this.dispatchEvent(new CustomEvent('initialized'))
     })
-    this.pc.addEventListener('track', async event => {
-      console.log('track received', event, this.video)
-      const [remoteStream] = event.streams
-      this.video.srcObject = remoteStream
-      this.dispatchEvent(new CustomEvent('track', { detail: remoteStream }))
-    })
-    this.pc.addEventListener('connectionstatechange', () => {
-      if (this.pc?.connectionState === 'connected') {
-        console.log('connected')
-      }
-    })
+
     this.eventListeners = {
       session_created: (data: string) => {
         this.sessionID = data
-        this.pc.createOffer(broadcastOfferOptions).then(offer => {
-          this.pc.setLocalDescription(offer).then(() => {
+        this.pc?.createOffer(broadcastOfferOptions).then(offer => {
+          this.pc?.setLocalDescription(offer).then(() => {
             this.conn?.send(
               JSON.stringify({
                 message_type: 3, // VIEWER_MESSAGE
@@ -285,20 +296,17 @@ export class ViewerChannel extends SignalChannel {
       // viewer_message
       1: (data: any) => {
         if (data.type === 'answer') {
-          console.log('answer received', data)
-          this.pc.setRemoteDescription(data.answer).then(() => {
-            console.log(this.pc)
+          this.pc?.setRemoteDescription(data.answer).then(() => {
             while (this.iceCandidatePool.length > 0) {
               const icecandidate = this.iceCandidatePool.pop()
               if (icecandidate) {
-                this.pc.addIceCandidate(icecandidate)
+                this.pc?.addIceCandidate(icecandidate)
               }
             }
           })
         } else if (data.type === 'icecandidate') {
-          console.log('icecandidate received', data)
-          if (this.pc.remoteDescription) {
-            this.pc.addIceCandidate(data.icecandidate).catch(err => {
+          if (this.pc?.remoteDescription) {
+            this.pc?.addIceCandidate(data.icecandidate).catch(err => {
               console.log('icecandidate error')
               console.error(err)
             })
@@ -312,12 +320,12 @@ export class ViewerChannel extends SignalChannel {
 
   connect() {
     super.connect(() => {
-      this.pc.close()
+      this.pc?.close()
     })
   }
 
   close() {
     super.close()
-    this.pc.close()
+    this.pc?.close()
   }
 }
