@@ -39,6 +39,11 @@ jobs:
         run: npm ci
       - name: Build static html
         run: npx vite build --base=https://fantadrinker.github.io/remote-camera/
+        env:
+          VITE_TURN_SERVER: ${{ secrets.VITE_TURN_SERVER }}
+          VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
+          VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
+          VITE_AUTH0_APP_CLIENT_ID: ${{ secrets.VITE_AUTH0_APP_CLIENT_ID }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
