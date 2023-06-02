@@ -16,7 +16,6 @@ const viewType = ref(ViewType.Broadcast)
 
 const isBroadcast = computed(() => viewType.value === ViewType.Broadcast)
 
-const dummyEnv = import.meta.env.VITE_DUMMY_VARIABLE ?? "no dummy env"
 
 const { isAuthenticated, loginWithRedirect } = useAuth0()
 
@@ -73,7 +72,6 @@ const openViewer = () => {
   </template>
   <div v-else>
     <button @click="loginApp">Log in</button>
-    <span>dummy environment {{ dummyEnv }}</span>
   </div>
 </template>
 
