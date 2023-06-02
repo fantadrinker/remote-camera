@@ -40,6 +40,7 @@ jobs:
       - name: Build static html
         run: npx vite build --base=https://fantadrinker.github.io/remote-camera/
         env:
+          VITE_DUMMY_VARIABLE: dummyprod
           VITE_TURN_SERVER: ${{ secrets.VITE_TURN_SERVER }}
           VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
           VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
