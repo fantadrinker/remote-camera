@@ -1,4 +1,3 @@
-// const SIGNAL_SERVER_URL = "wss://34.125.17.77:8000";
 const SIGNAL_SERVER_URL =
   import.meta.env.MODE === 'development'
     ? 'ws://localhost:8000'
