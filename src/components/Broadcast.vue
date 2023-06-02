@@ -126,7 +126,7 @@ const log = (msg: string) => {
 }
 
 const openCam = async () => {
-    console.log(import.meta.env.TEST_ENV || 'no test env found :(')
+    console.log(import.meta.env.VITE_TEST_ENV || 'no test env found :(')
   camVideo.isCamOpening = true
   try {
     await openStream(cam.value as HTMLMediaElement, () => {
