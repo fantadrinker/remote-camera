@@ -16,7 +16,7 @@ export const getS3AccessUrl = async (access_token: string, sub: string) => {
 export const getS3DownloadUrl = async (
   access_token: string,
   sub: string,
-  key: string
+  key: string,
 ) => {
   const response = await fetch(
     `${
@@ -78,65 +78,3 @@ export const getRecordings = async (access_token: string, sub: string) => {
   })
 }
 
-// unused stubs
-
-export const submitOffer = async (
-  id: string,
-  offer: RTCSessionDescriptionInit,
-  access_token: string
-) => {
-  const response = await fetch(
-    `${import.meta.env.VITE_AWS_API_ENDPOINT}broadcast`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: access_token,
-      },
-      body: JSON.stringify({
-        id,
-        offer,
-      }),
-      mode: 'cors',
-    }
-  )
-  return response
-}
-
-export const retrieveOffer = async (id: string, access_token: string) => {
-  const response = await fetch(
-    `${import.meta.env.VITE_AWS_API_ENDPOINT}viewer?id=${id}`,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: access_token,
-      },
-      mode: 'cors',
-    }
-  )
-  return response.json()
-}
-
-export const connectToBroadcast = async (
-  id: string,
-  offer: RTCSessionDescriptionInit,
-  access_token: string
-) => {
-  const response = await fetch(
-    `${import.meta.env.VITE_AWS_API_ENDPOINT}viewer?id=${id}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: access_token,
-      },
-      mode: 'cors',
-      body: JSON.stringify({
-        id,
-        offer,
-      }),
-    }
-  )
-  return response
-}
