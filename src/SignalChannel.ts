@@ -1,6 +1,6 @@
 const SIGNAL_SERVER_URL =
   import.meta.env.MODE === 'development'
-    ? 'wss://wvjlw2iy7a.execute-api.us-east-1.amazonaws.com/Prod'
+    ? 'wss://wvjlw2iy7a.execute-api.us-east-1.amazonaws.com/Test'
     : import.meta.env.VITE_SIGNAL_SERVER
 
 function defaultOnOpen() {
@@ -43,19 +43,16 @@ const getRTCConfig = async () => {
 export class SignalChannel extends EventTarget {
   conn: WebSocket | null = null
   broadcastID: string
-  protocol: string
   isOpen: boolean = false
   onOpen: () => void = defaultOnOpen
   eventListeners: Record<string | number, (data: any) => void> = {}
 
   constructor(
-    protocol: string,
     id: string,
     onOpen: () => void = defaultOnOpen
   ) {
     super()
     this.broadcastID = id
-    this.protocol = protocol
     this.onOpen = onOpen
   }
 
@@ -110,7 +107,7 @@ export class BroadcastChannel extends SignalChannel {
   stream: MediaStream
   iceCandidatePool: Record<string, RTCIceCandidate[]> = {}
   constructor(id: string, stream: MediaStream) {
-    super('broadcast-protocol', id, () => {
+    super(id, () => {
       this.conn?.send(
         JSON.stringify({
           action: 'sendMessage',
@@ -233,7 +230,7 @@ export class ViewerChannel extends SignalChannel {
   ) {
     // try to get stream, viewer should not provide video stream
     // but it apparently doesn't work on iphone
-    super('viewer-protocol', id, () => {
+    super(id, () => {
       this.conn?.send(
         JSON.stringify({
           action: 'sendMessage',
