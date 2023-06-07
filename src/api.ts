@@ -16,7 +16,8 @@ export const getS3AccessUrl = async (access_token: string, sub: string) => {
 export const getS3DownloadUrl = async (
   access_token: string,
   sub: string,
-  key: string
+  key: string,
+  dummy: number
 ) => {
   const response = await fetch(
     `${

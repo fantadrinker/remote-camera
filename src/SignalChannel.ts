@@ -1,10 +1,12 @@
 const SIGNAL_SERVER_URL =
   import.meta.env.MODE === 'development'
-    ? 'ws://localhost:8000'
+    ? 'wss://wvjlw2iy7a.execute-api.us-east-1.amazonaws.com/Prod'
     : import.meta.env.VITE_SIGNAL_SERVER
+
 function defaultOnOpen() {
   console.log('connection opened')
 }
+
 interface EventData {
   message_type: string
   payload: any
@@ -41,36 +43,36 @@ const getRTCConfig = async () => {
 export class SignalChannel extends EventTarget {
   conn: WebSocket | null = null
   broadcastID: string
-  isBroadcaster: boolean
+  protocol: string
   isOpen: boolean = false
   onOpen: () => void = defaultOnOpen
   eventListeners: Record<string | number, (data: any) => void> = {}
 
   constructor(
-    isBroadcaster: boolean,
+    protocol: string,
     id: string,
     onOpen: () => void = defaultOnOpen
   ) {
     super()
     this.broadcastID = id
-    this.isBroadcaster = isBroadcaster
+    this.protocol = protocol
     this.onOpen = onOpen
   }
 
   connect(onClose: () => void) {
     this.conn = new WebSocket(
       SIGNAL_SERVER_URL,
-      this.isBroadcaster ? 'broadcast-protocol' : 'viewer-protocol'
     )
     this.conn.onmessage = msg => {
       if (msg.data === 'ping') {
         this.conn?.send('pong')
         return
       }
+
       const data: EventData = JSON.parse(msg.data)
       Object.keys(this.eventListeners).forEach(key => {
         const callback = this.eventListeners[key]
-        if (key === data.message_type.toString()) {
+        if (data.message_type && key === data.message_type.toString()) {
           callback(data.payload)
         }
       })
@@ -91,7 +93,7 @@ export class SignalChannel extends EventTarget {
   emit(payload: any) {
     this.conn?.send(
       JSON.stringify({
-        broadcast_id: this.broadcastID,
+        broadcastId: this.broadcastID,
         payload,
       })
     )
@@ -108,18 +110,21 @@ export class BroadcastChannel extends SignalChannel {
   stream: MediaStream
   iceCandidatePool: Record<string, RTCIceCandidate[]> = {}
   constructor(id: string, stream: MediaStream) {
-    super(true, id, () => {
+    super('broadcast-protocol', id, () => {
       this.conn?.send(
         JSON.stringify({
-          message_type: 0, // BROADCAST_OFFER
-          broadcast_id: id,
+          action: 'sendMessage',
+          data: {
+            message_type: 'broadcast_init', // BROADCAST_OFFER
+            broadcastId: id,
+          }
         })
       )
     })
     this.stream = stream
     this.eventListeners = {
       // VIEWER_MESSAGE
-      3: async (data: any) => {
+      viewer_message: async (data: any) => {
         if (data.type === 'offer') {
           const { session_id, offer } = data
           const rtcConfig = await getRTCConfig()
@@ -131,12 +136,15 @@ export class BroadcastChannel extends SignalChannel {
             if (event.candidate) {
               this.conn?.send(
                 JSON.stringify({
-                  message_type: 1, // BROADCAST_MESSAGE
-                  session_id: session_id,
-                  payload: {
-                    type: 'icecandidate',
-                    icecandidate: event.candidate,
-                  },
+                  action: "sendMessage",
+                  data: {
+                    message_type: 'broadcast_message', // BROADCAST_MESSAGE
+                    viewerId: session_id,
+                    data: {
+                      type: 'icecandidate',
+                      icecandidate: event.candidate,
+                    },
+                  }
                 })
               )
             }
@@ -144,13 +152,14 @@ export class BroadcastChannel extends SignalChannel {
           this.pcs[session_id].addEventListener(
             'connectionstatechange',
             event => {
+              if (this.pcs[session_id].connectionState === 'connected') {
               console.log(
                 'connection state change',
                 event,
                 this.pcs[session_id].connectionState
               )
             }
-          )
+          })
           this.pcs[session_id].setRemoteDescription(offer)
           this.pcs[session_id].createAnswer().then(answer => {
             this.pcs[session_id].setLocalDescription(answer).then(() => {
@@ -162,12 +171,15 @@ export class BroadcastChannel extends SignalChannel {
               }
               this.conn?.send(
                 JSON.stringify({
-                  message_type: 1, // BROADCAST_MESSAGE
-                  session_id: session_id,
-                  payload: {
-                    type: 'answer',
-                    answer: answer,
-                  },
+                  action: 'sendMessage',
+                  data: {
+                    message_type: 'broadcast_message',
+                    viewerId: session_id,
+                    data: {
+                      type: 'answer',
+                      answer: answer,
+                    },
+                  }
                 })
               )
             })
@@ -210,7 +222,7 @@ export class BroadcastChannel extends SignalChannel {
 }
 
 export class ViewerChannel extends SignalChannel {
-  sessionID: string = ''
+  registered: boolean = false
   pc: RTCPeerConnection | null = null
   video: HTMLVideoElement
   iceCandidatePool: RTCIceCandidate[] = []
@@ -221,11 +233,14 @@ export class ViewerChannel extends SignalChannel {
   ) {
     // try to get stream, viewer should not provide video stream
     // but it apparently doesn't work on iphone
-    super(false, id, () => {
+    super('viewer-protocol', id, () => {
       this.conn?.send(
         JSON.stringify({
-          message_type: 2, // VIEWER_JOIN
-          broadcast_id: id,
+          action: 'sendMessage',
+          data: {
+            message_type: 'viewer_join', // VIEWER_JOIN
+            broadcastId: id,
+          }
         })
       )
     })
@@ -249,12 +264,14 @@ export class ViewerChannel extends SignalChannel {
         if (event.candidate) {
           this.conn?.send(
             JSON.stringify({
-              message_type: 3, // VIEWER_MESSAGE
-              session_id: this.sessionID,
-              payload: {
-                type: 'icecandidate',
-                icecandidate: event.candidate,
-              },
+              action: 'sendMessage',
+              data: {
+                message_type: 'viewer_message', // VIEWER_MESSAGE
+                data: {
+                  type: 'icecandidate',
+                  icecandidate: event.candidate,
+                },
+              }
             })
           )
         }
@@ -268,6 +285,10 @@ export class ViewerChannel extends SignalChannel {
       this.pc.addEventListener('connectionstatechange', () => {
         if (this.pc?.connectionState === 'connected') {
           console.log('connected')
+          this.conn?.send(JSON.stringify({
+            action: 'sendMessage', 
+            data: { message_type: 5 }
+          })) // VIEWER_CONNECTED
         }
       })
       this.dispatchEvent(new CustomEvent('initialized'))
@@ -275,25 +296,26 @@ export class ViewerChannel extends SignalChannel {
 
     this.eventListeners = {
       session_created: (data: string) => {
-        this.sessionID = data
+        this.registered = true
         this.pc?.createOffer(broadcastOfferOptions).then(offer => {
           this.pc?.setLocalDescription(offer).then(() => {
             this.conn?.send(
               JSON.stringify({
-                message_type: 3, // VIEWER_MESSAGE
-                session_id: data,
-                payload: {
-                  session_id: data,
-                  type: 'offer',
-                  offer: offer,
-                },
+                action: 'sendMessage',
+                data: {
+                  message_type: 'viewer_message', // VIEWER_MESSAGE
+                  data: {
+                    session_id: data,
+                    type: 'offer',
+                    offer: offer,
+                  },
+                }
               })
             )
           })
         })
       },
-      // viewer_message
-      1: (data: any) => {
+      broadcast_message: (data: any) => {
         if (data.type === 'answer') {
           this.pc?.setRemoteDescription(data.answer).then(() => {
             while (this.iceCandidatePool.length > 0) {
@@ -314,6 +336,14 @@ export class ViewerChannel extends SignalChannel {
           }
         }
       },
+      error: (data: any) => {
+        if (!this.registered) {
+          console.error('error before session id is created')
+          // should retry here
+          
+        }
+        console.error(data)
+      }
     }
   }
 

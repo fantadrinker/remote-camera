@@ -6,8 +6,6 @@ import { computed } from '@vue/reactivity'
 import { BroadcastChannel } from '../SignalChannel'
 import Loading from './Loading.vue'
 
-// some integer properties
-
 const recordingOptions = reactive({
   repeatTimes: 5,
   repeatInterval: 5000,

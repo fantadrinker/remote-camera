@@ -9,7 +9,8 @@ import Profile from './components/Profile.vue'
 
 enum ViewType {
   Broadcast = 'broadcast',
-  Viewer = 'viewer',
+    Viewer = 'viewer',
+    Test = 'test',
 }
 
 const viewType = ref(ViewType.Broadcast)
