@@ -1,7 +1,4 @@
-const SIGNAL_SERVER_URL =
-  import.meta.env.MODE === 'development'
-    ? 'wss://wvjlw2iy7a.execute-api.us-east-1.amazonaws.com/Test'
-    : import.meta.env.VITE_SIGNAL_SERVER
+const SIGNAL_SERVER_URL = import.meta.env.VITE_SIGNAL_SERVER
 
 function defaultOnOpen() {
   console.log('connection opened')
@@ -110,7 +107,7 @@ export class BroadcastChannel extends SignalChannel {
     super(id, () => {
       this.conn?.send(
         JSON.stringify({
-          action: 'sendMessage',
+          action: 'broadcastinit',
           data: {
             message_type: 'broadcast_init', // BROADCAST_OFFER
             broadcastId: id,
@@ -133,7 +130,7 @@ export class BroadcastChannel extends SignalChannel {
             if (event.candidate) {
               this.conn?.send(
                 JSON.stringify({
-                  action: "sendMessage",
+                  action: "broadcastsend",
                   data: {
                     message_type: 'broadcast_message', // BROADCAST_MESSAGE
                     viewerId: session_id,
@@ -168,7 +165,7 @@ export class BroadcastChannel extends SignalChannel {
               }
               this.conn?.send(
                 JSON.stringify({
-                  action: 'sendMessage',
+                  action: 'broadcastsend',
                   data: {
                     message_type: 'broadcast_message',
                     viewerId: session_id,
@@ -233,7 +230,7 @@ export class ViewerChannel extends SignalChannel {
     super(id, () => {
       this.conn?.send(
         JSON.stringify({
-          action: 'sendMessage',
+          action: 'viewerinit',
           data: {
             message_type: 'viewer_join', // VIEWER_JOIN
             broadcastId: id,
@@ -261,7 +258,7 @@ export class ViewerChannel extends SignalChannel {
         if (event.candidate) {
           this.conn?.send(
             JSON.stringify({
-              action: 'sendMessage',
+              action: 'viewersend',
               data: {
                 message_type: 'viewer_message', // VIEWER_MESSAGE
                 data: {
@@ -283,7 +280,7 @@ export class ViewerChannel extends SignalChannel {
         if (this.pc?.connectionState === 'connected') {
           console.log('connected')
           this.conn?.send(JSON.stringify({
-            action: 'sendMessage', 
+            action: 'viewersend', 
             data: { message_type: 5 }
           })) // VIEWER_CONNECTED
         }
@@ -298,7 +295,7 @@ export class ViewerChannel extends SignalChannel {
           this.pc?.setLocalDescription(offer).then(() => {
             this.conn?.send(
               JSON.stringify({
-                action: 'sendMessage',
+                action: 'viewersend',
                 data: {
                   message_type: 'viewer_message', // VIEWER_MESSAGE
                   data: {

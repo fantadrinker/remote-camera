@@ -68,8 +68,8 @@ export const getRecordings = async (access_token: string, sub: string) => {
       mode: 'cors',
     }
   )
-  const arr = await response.json()
-  return arr.map((recording: RecordingAPIResponse) => {
+  const {data} = await response.json()
+  return data?.map((recording: RecordingAPIResponse) => {
     return {
       Key: recording.Key,
       LastModified: new Date(recording.LastModified),
