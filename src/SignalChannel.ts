@@ -222,6 +222,8 @@ export class ViewerChannel extends SignalChannel {
   pc: RTCPeerConnection | null = null
   video: HTMLVideoElement
   iceCandidatePool: RTCIceCandidate[] = []
+  sessionId: string | undefined = undefined
+
   constructor(
     id: string,
     video: HTMLVideoElement,
@@ -265,6 +267,7 @@ export class ViewerChannel extends SignalChannel {
                 message_type: 'viewer_message', // VIEWER_MESSAGE
                 data: {
                   type: 'icecandidate',
+                  session_id: this.sessionId,
                   icecandidate: event.candidate,
                 },
               }
@@ -293,6 +296,7 @@ export class ViewerChannel extends SignalChannel {
     this.eventListeners = {
       session_created: (data: string) => {
         this.registered = true
+        this.sessionId = data
         this.pc?.createOffer(broadcastOfferOptions).then(offer => {
           this.pc?.setLocalDescription(offer).then(() => {
             this.conn?.send(
