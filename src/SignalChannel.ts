@@ -180,8 +180,8 @@ export class BroadcastChannel extends SignalChannel {
             })
           })
         } else if (data.type === 'icecandidate') {
-          console.log('adding icecandiate', data, this.pcs[session_id])
           const { session_id, icecandidate } = data
+          console.log('adding icecandidate', data, this.pcs[session_id])
           if (!this.pcs[session_id]) {
             if (this.iceCandidatePool[session_id]) {
               this.iceCandidatePool[session_id].push(icecandidate)
