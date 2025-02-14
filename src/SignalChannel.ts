@@ -147,16 +147,17 @@ export class BroadcastChannel extends SignalChannel {
             'connectionstatechange',
             event => {
               if (this.pcs[session_id].connectionState === 'connected') {
-              console.log(
-                'connection state change',
-                event,
-                this.pcs[session_id].connectionState
-              )
-            }
-          })
+                console.log(
+                  'connection state change',
+                  event,
+                  this.pcs[session_id].connectionState
+                )
+              }
+            })
           this.pcs[session_id].setRemoteDescription(offer)
           this.pcs[session_id].createAnswer().then(answer => {
             this.pcs[session_id].setLocalDescription(answer).then(() => {
+              console.log('popping from local icecandidate pool', this.iceCandidatePool[session_id])
               while (this.iceCandidatePool[session_id]?.length > 0) {
                 const icecandidate = this.iceCandidatePool[session_id].pop()
                 if (icecandidate) {
@@ -179,6 +180,7 @@ export class BroadcastChannel extends SignalChannel {
             })
           })
         } else if (data.type === 'icecandidate') {
+          console.log('adding icecandiate', data)
           const { session_id, icecandidate } = data
           if (!this.pcs[session_id]) {
             if (this.iceCandidatePool[session_id]) {
