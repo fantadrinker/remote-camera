@@ -157,7 +157,7 @@ export class BroadcastChannel extends SignalChannel {
           this.pcs[session_id].setRemoteDescription(offer)
           this.pcs[session_id].createAnswer().then(answer => {
             this.pcs[session_id].setLocalDescription(answer).then(() => {
-              console.log('popping from local icecandidate pool', this.iceCandidatePool[session_id])
+              console.log('popping from local icecandidate pool', this.iceCandidatePool[session_id], this.pcs)
               while (this.iceCandidatePool[session_id]?.length > 0) {
                 const icecandidate = this.iceCandidatePool[session_id].pop()
                 if (icecandidate) {
@@ -180,7 +180,7 @@ export class BroadcastChannel extends SignalChannel {
             })
           })
         } else if (data.type === 'icecandidate') {
-          console.log('adding icecandiate', data)
+          console.log('adding icecandiate', data, this.pcs[session_id])
           const { session_id, icecandidate } = data
           if (!this.pcs[session_id]) {
             if (this.iceCandidatePool[session_id]) {
