@@ -9,8 +9,8 @@ import WelcomeVue from './components/Welcome.vue';
 
 
 const BASE_URL = process.env.NODE_ENV === 'production'
-  ? `${window.location.origin}/remote-camera`
-  : window.location.origin;
+  ? '/remote-camera'
+  : '';
 
 
 const routes = [
@@ -34,7 +34,7 @@ app.use(
     domain: import.meta.env.VITE_AUTH0_DOMAIN,
     clientId: import.meta.env.VITE_AUTH0_APP_CLIENT_ID,
     authorizationParams: {
-      redirect_uri: BASE_URL,
+      redirect_uri: `${window.location.origin}${BASE_URL}`,
       audience: import.meta.env.VITE_AWS_API_ENDPOINT,
     },
     cacheLocation: 'localstorage',
