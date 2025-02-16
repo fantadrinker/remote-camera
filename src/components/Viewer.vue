@@ -3,6 +3,7 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import { ref, Ref, onMounted, reactive } from 'vue'
 import { getRecordings, getS3DownloadUrl } from '../api'
 import Loading from './Loading.vue'
+import NavBar from './NavBar.vue'
 import { ViewerChannel } from '../SignalChannel'
 
 interface RecordingObject {
@@ -85,6 +86,7 @@ const disconnectBroadcast = () => {
 </script>
 
 <template>
+  <NavBar route='/camera' />
   <div class="flex flex-col items-center mt-16 sm:mt-0">
     <div v-if="!videoConnection.isConnected" class="pb-5">
       <h4 class="pb-2 font-bold">Connect to a live broadcast</h4>
@@ -94,35 +96,20 @@ const disconnectBroadcast = () => {
       </div>
       <button @click="connectToBroadcast">Connect</button>
     </div>
-    <div
-      v-if="videoConnection.isConnected || videoConnection.isConnecting"
-      class="flex flex-row justify-between"
-    >
+    <div v-if="videoConnection.isConnected || videoConnection.isConnecting" class="flex flex-row justify-between">
       <h4>
         {{ videoConnection.isConnected ? 'Connected' : 'Connecting' }}
         to broadcast {{ broadcastID }}
       </h4>
       <button class="ml-5" @click="disconnectBroadcast">Disconnect</button>
     </div>
-    <div
-      v-show="videoConnection.isConnected || videoConnection.isConnecting"
-      class="relative"
-    >
-      <div
-        v-if="videoConnection.isConnecting"
-        class="absolute w-full h-full bg-opacity-75 bg-white"
-      >
+    <div v-show="videoConnection.isConnected || videoConnection.isConnecting" class="relative">
+      <div v-if="videoConnection.isConnecting" class="absolute w-full h-full bg-opacity-75 bg-white">
         <Loading />
       </div>
       <canvas id="dummyCanvas" ref="dummyCanvas" width="1" height="1"></canvas>
-      <video
-        id="cam"
-        ref="cam"
-        width="400"
-        playsinline
-        autoplay
-        poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"
-      ></video>
+      <video id="cam" ref="cam" width="400" playsinline autoplay
+        poster="https://as1.ftcdn.net/v2/jpg/02/95/94/94/1000_F_295949484_8BrlWkTrPXTYzgMn3UebDl1O13PcVNMU.jpg"></video>
     </div>
     <h4 class="pb-5 font-bold">Or view past recordings</h4>
     <Loading v-if="recordingsState.loading" />
@@ -133,18 +120,11 @@ const disconnectBroadcast = () => {
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody
-        v-for="recording in recordingsState.recordings"
-        :key="recording.Key"
-      >
+      <tbody v-for="recording in recordingsState.recordings" :key="recording.Key">
         <tr>
           <td>{{ recording.LastModified.toLocaleDateString() }}</td>
           <td>
-            <button
-              class="ml-2"
-              :disabled="recording.loading"
-              @click="() => openRecording(recording.Key)"
-            >
+            <button class="ml-2" :disabled="recording.loading" @click="() => openRecording(recording.Key)">
               View
             </button>
             <button :disabled="recording.loading" class="ml-2">Delete</button>

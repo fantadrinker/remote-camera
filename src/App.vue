@@ -24,21 +24,6 @@ function loginApp() {
 
 <template>
   <template v-if="isAuthenticated">
-    <div class="flex justify-around absolute sm:relative z-10 top-0 sm:mt-4 h-16 w-full">
-      <div class="flex items-center">
-        <button :class="this.$route.path === ViewType.Welcome ? 'bg-green-900 mr-2' : 'mr-2'">
-          <RouterLink to="/">Home</RouterLink>
-        </button>
-        <button :class="this.$route.path === ViewType.Broadcast ? 'bg-green-900 mr-2' : 'mr-2'">
-          <RouterLink to="/broadcast">Broadcast</RouterLink>
-        </button>
-        <button :class="this.$route.path === ViewType.Viewer ? 'bg-green-900 mr-2' : 'mr-2'">
-          <RouterLink to="/camera">Viewer</RouterLink>
-        </button>
-      </div>
-
-      <Profile :show-user-name="false" />
-    </div>
     <div class="flex flex-col sm:justify-center items-center sm:relative sm:mt-9">
       <RouterView />
     </div>

@@ -5,6 +5,7 @@ import { openStream, recordAndUpload } from '../helpers'
 import { computed } from '@vue/reactivity'
 import { BroadcastChannel } from '../SignalChannel'
 import Loading from './Loading.vue'
+import NavBar from './NavBar.vue'
 
 const recordingOptions = reactive({
   repeatTimes: 5,
@@ -171,47 +172,28 @@ const toggleBottomBar = () => {
 </script>
 
 <template>
+  <NavBar route='/broadcast' />
   <div v-if="hasError" class="errors">
     {{ error }}
   </div>
-  <div
-    v-if="camVideo.isCamOpening"
-    class="absolute w-full h-full bg-opacity-50 bg-slate-500 z-10"
-  >
+  <div v-if="camVideo.isCamOpening" class="absolute w-full h-full bg-opacity-50 bg-slate-500 z-10">
     <Loading />
   </div>
-  <video
-    id="cam"
-    ref="cam"
-    width="400"
-    class="rounded-md absolute sm:static top-0 bottom-0 m-auto"
-    playsinline
-    autoplay
-    :poster="vidPoster"
-  ></video>
+  <video id="cam" ref="cam" width="400" class="rounded-md absolute sm:static top-0 bottom-0 m-auto" playsinline autoplay
+    :poster="vidPoster"></video>
   <div
-    class="flex flex-col justify-evenly pt-3 sm:mt-3 w-full sm:w-96 absolute sm:relative bottom-0 bg-zinc-800 sm:bg-transparent bg-opacity-90 rounded-ss-2xl rounded-se-2xl"
-  >
+    class="flex flex-col justify-evenly pt-3 sm:mt-3 w-full sm:w-96 absolute sm:relative bottom-0 bg-zinc-800 sm:bg-transparent bg-opacity-90 rounded-ss-2xl rounded-se-2xl">
     <div class="flex flex-row justify-evenly items-center">
       <button v-if="camVideo.isCamOpen" class="mx-4 my-2" @click="closeCam">
         Close Camera
       </button>
-      <button
-        v-else
-        class="mx-4 my-2"
-        @click="openCam"
-        :disabled="camVideo.isCamOpening"
-      >
+      <button v-else class="mx-4 my-2" @click="openCam" :disabled="camVideo.isCamOpening">
         Open Camera
       </button>
       <button @click="toggleBottomBar" class="sm:hidden">^</button>
     </div>
 
-    <div
-      v-show="expandedBottomBar"
-      class="recording-options"
-      v-if="camVideo.isCamOpen"
-    >
+    <div v-show="expandedBottomBar" class="recording-options" v-if="camVideo.isCamOpen">
       <div class="flex flex-row justify-between">
         <h4>Recording Options:</h4>
         <button @click="toggleRecordingOptions">
@@ -222,31 +204,16 @@ const toggleBottomBar = () => {
       <template v-if="expandableState.recording">
         <div>
           <label>Repeat times: </label>
-          <input
-            type="range"
-            :disabled="isRecording"
-            v-model="recordingOptions.repeatTimes"
-            :min="1"
-            :max="10"
-          />
-          <input
-            :disabled="isRecording"
-            v-model="recordingOptions.repeatTimes"
-          />
+          <input type="range" :disabled="isRecording" v-model="recordingOptions.repeatTimes" :min="1" :max="10" />
+          <input :disabled="isRecording" v-model="recordingOptions.repeatTimes" />
         </div>
         <div>
           <label>Repeat interval: </label>
-          <input
-            :disabled="isRecording"
-            v-model="recordingOptions.repeatInterval"
-          />
+          <input :disabled="isRecording" v-model="recordingOptions.repeatInterval" />
         </div>
         <div>
           <label>Recording length: </label>
-          <input
-            :disabled="isRecording"
-            v-model="recordingOptions.recordingLength"
-          />
+          <input :disabled="isRecording" v-model="recordingOptions.recordingLength" />
         </div>
         <button class="mx-4 my-2" v-if="isRecording" @click="stopRecording">
           Stop Recording
@@ -257,11 +224,7 @@ const toggleBottomBar = () => {
       </template>
     </div>
 
-    <div
-      v-show="expandedBottomBar"
-      class="broadcasting-options"
-      v-if="camVideo.isCamOpen"
-    >
+    <div v-show="expandedBottomBar" class="broadcasting-options" v-if="camVideo.isCamOpen">
       <div class="flex flex-col justify-between">
         <h4>Broadcasting Options</h4>
         <button @click="toggleBroadcastingOptions">
@@ -299,31 +262,32 @@ const toggleBottomBar = () => {
 .control-panel button {
   margin: 1em 2em;
 }
+
 .recording-options {
   display: flex;
   flex-direction: column;
 }
 
-.recording-options > div,
-.broadcasting-options > div {
+.recording-options>div,
+.broadcasting-options>div {
   display: flex;
   flex-direction: row;
   margin-block-end: 1em;
   align-items: baseline;
 }
 
-.recording-options > h4 {
+.recording-options>h4 {
   margin-block-start: 1em;
   margin-block-end: 1em;
 }
 
-.input-group > label,
-.recording-options > div > label {
+.input-group>label,
+.recording-options>div>label {
   flex-grow: 2;
 }
 
-.input-group > input,
-.recording-options > div > input {
+.input-group>input,
+.recording-options>div>input {
   flex-grow: 1;
 }
 
