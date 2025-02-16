@@ -10,35 +10,15 @@ import Profile from './components/Profile.vue'
 import Welcome from './components/Welcome.vue'
 
 enum ViewType {
-  Welcome = 'welcome',
-  Broadcast = 'broadcast',
-  Viewer = 'viewer',
+  Welcome = '/',
+  Broadcast = '/broadcast',
+  Viewer = '/camera',
 }
-
-const viewType = ref(ViewType.Welcome)
-
-const isBroadcast = computed(() => viewType.value === ViewType.Broadcast)
-
-const isWelcome = computed(() => viewType.value === ViewType.Welcome)
 
 const { isAuthenticated, loginWithRedirect } = useAuth0()
 
 function loginApp() {
   loginWithRedirect()
-}
-
-const openBroadcast = () => {
-  if (viewType.value === ViewType.Broadcast) {
-    return
-  }
-  viewType.value = ViewType.Broadcast
-}
-
-const openViewer = () => {
-  if (viewType.value === ViewType.Viewer) {
-    return
-  }
-  viewType.value = ViewType.Viewer
 }
 </script>
 
@@ -46,9 +26,15 @@ const openViewer = () => {
   <template v-if="isAuthenticated">
     <div class="flex justify-around absolute sm:relative z-10 top-0 sm:mt-4 h-16 w-full">
       <div class="flex items-center">
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/broadcast">Broadcast</RouterLink>
-        <RouterLink to="/camera">Viewer</RouterLink>
+        <button :class="this.$route.path === ViewType.Welcome ? 'bg-green-900 mr-2' : 'mr-2'">
+          <RouterLink to="/">Home</RouterLink>
+        </button>
+        <button :class="this.$route.path === ViewType.Broadcast ? 'bg-green-900 mr-2' : 'mr-2'">
+          <RouterLink to="/broadcast">Broadcast</RouterLink>
+        </button>
+        <button :class="this.$route.path === ViewType.Viewer ? 'bg-green-900 mr-2' : 'mr-2'">
+          <RouterLink to="/camera">Viewer</RouterLink>
+        </button>
       </div>
 
       <Profile :show-user-name="false" />
